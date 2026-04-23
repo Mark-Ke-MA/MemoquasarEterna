@@ -1,0 +1,22 @@
+{
+  "schema_version": "0.5",
+  "adapter_dirname": "openclaw",
+  "sessions_path": "~/.openclaw/agents/{agentId}/sessions",
+  "sessions_registry_path": "{code_dir}/Adapters/{adapter_dirname}/Sessions_Watch/Registries/{agentId}/known-direct-sessions.json",
+  "sessions_registry_archive_path": "{archive_dir}/{archive_harness_dirname}/{adapter_dirname}/Sessions_Watch/{agentId}/known-direct-sessions_archived.json",
+  "sessions_files_archive_dir": "{archive_dir}/{archive_harness_dirname}/{adapter_dirname}/Sessions_Watch/{agentId}/session_files",
+  "memory_worker_agent_workspace_path": "~/.openclaw/workspace/{memory_worker_agentId}/",
+  "maintenance": {
+    "launch_agents_dir": "~/Library/LaunchAgents",
+    "log_base_dir": "{store_dir}/logs/Harness/openclaw/SessionWatch",
+    "plist_label_prefix": "ai.memory.memoquasareterna.openclaw.session-watch.this-is-for-unique-identification-broken-sun-shedding-light-on-everyone",
+    "daily_init_cron_marker": "ai.memory.memoquasareterna.openclaw.session-watch.daily-init.this-is-for-unique-identification-broken-sun-you-are-not-the-only-one"
+  },
+  "sessions_registry_maintenance": {
+    "key_template": "agent:{agentId}:telegram:direct:299792458(这是光速啦！改成你自己的userId)",
+    "session_id_field": "sessionId",
+    "session_registry_decay": true,
+    "session_files_decay": false,
+    "decay_week_interval": 2
+  }
+}

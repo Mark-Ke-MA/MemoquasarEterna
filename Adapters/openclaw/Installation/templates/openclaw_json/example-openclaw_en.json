@@ -1,0 +1,51 @@
+{
+  "_note": "这是用于合并进 ~/.openclaw/openclaw.json 的示例片段。不要整文件覆盖你自己的 openclaw.json，只合并相关字段。",
+  "_warning": "memory worker agent 是专用内部 worker。不要把它加入 agentId_list，也不要把它当作普通生产级 agent 使用。",
+  "agents": {
+    "list": [
+      {
+        "id": "{{memory_worker_agentId}}",
+        "_description": "把这一整段作为一个完整的新 entry 加进 agents.list[]。",
+        "workspace": "{{memory_worker_workspace_path}}",
+        "model": {
+          "_description": "选择一个在你的 OpenClaw 环境中可用、且适合处理记忆相关任务的模型。",
+          "primary": "minimax-portal/MiniMax-M2.7"
+        },
+        "subagents": {
+          "_description": "必填。memory worker 需要允许调用它自己的内部任务流。",
+          "allowAgents": [
+            "{{memory_worker_agentId}}"
+          ]
+        },
+        "tools": {
+          "_description": "安全边界项。这个 worker 理论上只需要 write 工具。",
+          "allow": [
+            "write"
+          ]
+        }
+      },
+      "for agentId in {{agentId_list}}: (script expands into per-agent tool patch objects)",
+      {
+        "id": "{{agentId}}",
+        "_description": "对每个你已经在使用的 agent，不要替换整条 entry；只把下面这些工具名追加到 tools.allow[] 中。",
+        "tools": {
+          "allow": [
+            "{{read_plugin_id}}",
+            "{{agentId}}_memory_vague_recall",
+            "{{agentId}}_memory_exact_recall"
+          ]
+        }
+      }
+    ]
+  },
+  "plugins": {
+    "slots": {
+      "memory": "{{read_plugin_id}}"
+    },
+    "entries": {
+      "{{read_plugin_id}}": {
+        "enabled": true
+      }
+    }
+  }
+}

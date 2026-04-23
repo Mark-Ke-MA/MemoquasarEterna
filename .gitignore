@@ -1,0 +1,6 @@
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+Installation/.install_logs/
+Adapters/openclaw/Sessions_Watch/Registries/

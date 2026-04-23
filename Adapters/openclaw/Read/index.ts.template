@@ -1,0 +1,114 @@
+import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
+
+const PYTHON_BIN = "__PYTHON_BIN__";
+const REPO_ROOT = "__REPO_ROOT__";
+const AGENT_ID_LIST = __AGENT_ID_LIST__;
+const PLUGIN_ID = "__PLUGIN_ID__";
+const PLUGIN_NAME = "__PLUGIN_NAME__";
+const VAGUE_ENTRY = `${REPO_ROOT}/Core/Layer4_Read/ENTRY_LAYER4_vague.py`;
+const EXACT_ENTRY = `${REPO_ROOT}/Core/Layer4_Read/ENTRY_LAYER4_exact.py`;
+
+function okText(text: string) {
+  return { content: [{ type: "text", text }] };
+}
+
+function errText(message: string) {
+  return { content: [{ type: "text", text: JSON.stringify({ error: message }) }] };
+}
+
+async function runPythonJson(args: string[]): Promise<any> {
+  const { stdout, stderr } = await execFileAsync(PYTHON_BIN, args, {
+    cwd: REPO_ROOT,
+    maxBuffer: 4 * 1024 * 1024,
+  });
+
+  const raw = String(stdout ?? "").trim();
+  if (!raw) {
+    throw new Error(`Python entry returned empty stdout. stderr=${String(stderr ?? "").trim()}`);
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    throw new Error(`Python entry returned non-JSON stdout: ${raw.slice(0, 500)}`);
+  }
+}
+
+export default definePluginEntry({
+  id: PLUGIN_ID,
+  name: PLUGIN_NAME,
+  description: "OpenClaw tools for clean local-memory Layer4 vague/exact recall",
+  register(api) {
+    for (const AGENT_ID of AGENT_ID_LIST) {
+      api.registerTool({
+        name: `${AGENT_ID}_memory_vague_recall`,
+        description: `Layer4 vague recall for ${AGENT_ID}. Optional date_window accepts YYYY-MM-DD or YYYY-MM-DD,YYYY-MM-DD. Optional prefer_l2_ratio accepts 0<=x<=1.`,
+        parameters: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            query: { type: "string", minLength: 1 },
+            date_window: { type: "string" },
+            prefer_l2_ratio: { type: "number", minimum: 0, maximum: 1 },
+          },
+          required: ["query"],
+        },
+        async execute(_id, params) {
+          try {
+            const args = [VAGUE_ENTRY, "--agent", AGENT_ID, "--query", params.query];
+            if (typeof params.date_window === "string" && params.date_window.trim()) {
+              args.push("--date-window", params.date_window.trim());
+            }
+            if (typeof params.prefer_l2_ratio === "number" && Number.isFinite(params.prefer_l2_ratio)) {
+              args.push("--prefer-l2-ratio", String(params.prefer_l2_ratio));
+            }
+            const result = await runPythonJson(args);
+            if (!result?.success) {
+              return errText(typeof result?.error === "string" ? result.error : "Layer4 vague recall failed");
+            }
+            return okText(String(result.assembled_text ?? ""));
+          } catch (error) {
+            return errText(error instanceof Error ? error.message : String(error));
+          }
+        },
+      });
+
+      api.registerTool({
+        name: `${AGENT_ID}_memory_exact_recall`,
+        description: `Layer4 exact recall for ${AGENT_ID}. Reads transcript excerpts from a single date and HH:MM window.`,
+        parameters: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            date: { type: "string", minLength: 10 },
+            window_start: { type: "string", minLength: 5 },
+            window_end: { type: "string", minLength: 5 },
+          },
+          required: ["date", "window_start", "window_end"],
+        },
+        async execute(_id, params) {
+          try {
+            const args = [
+              EXACT_ENTRY,
+              "--agent", AGENT_ID,
+              "--date", params.date,
+              "--window-start", params.window_start,
+              "--window-end", params.window_end,
+            ];
+            const result = await runPythonJson(args);
+            if (!result?.success) {
+              return errText(typeof result?.error === "string" ? result.error : "Layer4 exact recall failed");
+            }
+            return okText(String(result.transcript_text ?? ""));
+          } catch (error) {
+            return errText(error instanceof Error ? error.message : String(error));
+          }
+        },
+      });
+    }
+  },
+});

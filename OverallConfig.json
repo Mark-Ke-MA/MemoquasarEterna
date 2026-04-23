@@ -1,0 +1,109 @@
+{
+  "schema_version": "4.0",
+  "active_schema_version": "3.1",
+  "archive_schema_version": "0.1",
+  "product_name": "MemoquasarEterna",
+  "layer1_auto_cron_marker": "ai.memory.memoquasareterna.core.layer1-auto-cron.this-is-for-unique-identification-they-cant-take-out-my-spark",
+  "layer3_auto_cron_marker": "ai.memory.memoquasareterna.core.layer3-auto-cron.this-is-for-unique-identification-i-wont-let-you-go-dark",
+  "_CMaA": "===================================================",
+  "_You_should_not_change_the_fields_above": "不要修改上面的字段",
+  "_CarA": "===================================================",
+  "harness": "openclaw",
+  "memory_worker_agentId": "civilighteterna",
+  "agentId_list": ["kaltsit", "kristen", "theresa", "closure", "lapland", "ling", "记得改成你自己的agentId列表"],
+  "code_dir": "/path/to/MemoquasarEterna",
+  "store_dir": ["e.g. /home/priestess/源石内化宇宙", "!!!这里你得自己改!!! 实际存储区域"],
+  "archive_dir": ["e.g. /黄浦江底/上海失恋博物馆/的u盘", "!!!这里你得自己改!!! 实际备份区域"],
+  "nprl_llm_max": 3,
+  "timezone": "Europe/London",
+  "use_embedding": true,
+  "embedding_model": "向量化模型（可本地）",
+  "embedding_api_url": "向量化模型接口地址",
+  "_CenA": "==================================================================================================================",
+  "_You_should_not_change_the_fields_below_unless_you_know_exactly_what_you_are_doing": "不要修改下面的字段，除非你完全清楚你在做什么",
+  "_BooA": "==================================================================================================================",
+  "daily_write_cron_time": "03:00",
+  "weekly_decay_cron_day": "Mon",
+  "weekly_decay_cron_time": "05:00",
+  "window": {
+    "start": {
+      "day_offset": 0,
+      "hour": 3,
+      "minute": 0
+    },
+    "end": {
+      "day_offset": 1,
+      "hour": 3,
+      "minute": 0
+    },
+    "boundary": {
+      "hour": 3,
+      "minute": 0
+    }
+  },
+  "layer1_write": {
+    "ct_all_max": 200000,
+    "ct_all_free": 75000,
+    "ct_map_prompt": 10000,
+    "ct_reduce_prompt": 10000,
+    "ct_system_prompt": 10000,
+    "ct_reduce_output_max": 10000,
+    "Nretry_map": 1,
+    "Nretry_reduce": 1,
+    "chunk_max_turns": 200,
+    "chars_per_token_estimate": 2
+  },
+  "layer3_decay": {
+    "_interval_in_units": "week",
+    "trimL2_interval": 2,
+    "shallow_interval": 3,
+    "deep_max_shallow": 4,
+    "Nretry_shallow": 1,
+    "Nretry_deep": 1
+  },
+  "archive_dir_structure": {
+    "core": "core",
+    "harness": "harness"
+  },
+  "store_dir_structure": {
+    "memory": {
+      "root": "memory",
+      "surface": "surface",
+      "shallow": "shallow",
+      "deep": "deep"
+    },
+    "staging": {
+      "root": "staging",
+      "staging_surface": "staging_surface",
+      "staging_shallow": "staging_shallow",
+      "staging_deep": "staging_deep"
+    },
+    "logs": {
+      "root": "logs",
+      "harness": {
+        "root": "Harness"
+      },
+      "layer1_write": {
+        "_note": "Only log failed jobs",
+        "root": "Layer1_Write_logs",
+        "auto": "auto",
+        "manual": "manual"
+      },
+      "layer2_preserve": {
+        "root": "Layer2_Preserve_logs"
+      },
+      "layer3_decay": {
+        "root": "Layer3_Decay_logs"
+      }
+    },
+    "restored": {
+      "root": "restored"
+    },
+    "statistics": {
+      "root": "statistics",
+      "graphs": "graphs",
+      "landmark_scores": "landmark_scores"
+    }
+  },
+  "empty_conversation_marker_suffix": ".noconversation"
+}
