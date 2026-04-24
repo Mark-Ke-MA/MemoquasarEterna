@@ -142,11 +142,12 @@ def _session_watch_cron_block(repo_root: Path) -> str:
     hour, minute = _session_watch_cron_hm(repo_root)
     hhmm = f"{hour:02d}:{minute:02d}"
     marker = str(_cfg(repo_root).openclaw_config['maintenance']['daily_init_cron_marker'])
+    spacing = "#"
     header = f"# ===== MemoquasarEterna OpenClaw Sessions Watch Daily Init（每日 {hhmm}）====="
     begin = f"# BEGIN {marker}"
     cron_line = f"{minute} {hour} * * * {py} {script} --all"
     end = f"# END {marker}"
-    return f"{header}\n{begin}\n{cron_line}\n{end}"
+    return f"{spacing}\n{header}\n{begin}\n{cron_line}\n{end}"
 
 
 def _ensure_daily_cron(repo_root: Path, *, dry_run: bool = False) -> dict:

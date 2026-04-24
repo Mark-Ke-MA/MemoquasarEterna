@@ -290,6 +290,7 @@ def _layer1_block(cfg: dict[str, Any], *, repo_root: Path) -> str:
         f'--repo-root {repo_root} --run-mode auto'
     )
     return (
+        '#\n'
         f'# ===== MemoquasarEterna Layer1 Auto Write（每日 {hour}:{minute}）=====\n'
         f'# BEGIN {marker}\n'
         f'{minute} {hour} * * * {command}\n'
@@ -310,6 +311,7 @@ def _layer3_block(cfg: dict[str, Any], *, repo_root: Path) -> str:
         f'--repo-root {repo_root} --run-mode auto --apply_cleanup'
     )
     return (
+        '#\n'
         f'# ===== MemoquasarEterna Layer3 Auto Decay（每周 {day_text} {hour}:{minute}）=====\n'
         f'# BEGIN {marker}\n'
         f'{minute} {hour} * * {dow} {command}\n'
