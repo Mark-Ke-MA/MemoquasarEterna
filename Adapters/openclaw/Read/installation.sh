@@ -54,11 +54,18 @@ mkdir -p "${TARGET_DIR}"
 
 INDEX_TEMPLATE="${SCRIPT_DIR}/index.ts.template"
 MANIFEST_TEMPLATE="${SCRIPT_DIR}/openclaw.plugin.json.template"
+SKILLS_SOURCE_DIR="${SCRIPT_DIR}/skills"
 INDEX_TARGET="${TARGET_DIR}/index.ts"
 MANIFEST_TARGET="${TARGET_DIR}/openclaw.plugin.json"
+SKILLS_TARGET_DIR="${TARGET_DIR}/skills"
 
 if [[ ! -f "${INDEX_TEMPLATE}" || ! -f "${MANIFEST_TEMPLATE}" ]]; then
   echo "ERROR: template files are missing under ${SCRIPT_DIR}" >&2
+  exit 1
+fi
+
+if [[ ! -d "${SKILLS_SOURCE_DIR}" ]]; then
+  echo "ERROR: skills directory is missing under ${SCRIPT_DIR}" >&2
   exit 1
 fi
 
@@ -82,6 +89,10 @@ for src, dst in [(index_tpl, index_out), (manifest_tpl, manifest_out)]:
         text = text.replace(old, new)
     Path(dst).write_text(text, encoding='utf-8')
 PY
+
+rm -rf "${SKILLS_TARGET_DIR}"
+mkdir -p "${SKILLS_TARGET_DIR}"
+cp -R "${SKILLS_SOURCE_DIR}/." "${SKILLS_TARGET_DIR}/"
 
 cat <<EOF
 Installed OpenClaw extension to:

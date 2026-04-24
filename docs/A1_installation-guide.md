@@ -18,6 +18,7 @@ python Installation/INSTALL.py
    - 根据交互提示补全 prerequisites 所需信息
    - 将 `Installation/example-openclaw.json` merge 到你的 OpenClaw 配置中
    - 重启 OpenClaw gateway
+   - 开一个新 session，使新安装的 plugin-shipped skill 稳定生效
 
 ## 安装前必须明确填写的字段
 至少应填写：
@@ -110,6 +111,12 @@ agent:{agentId}:telegram:direct:1234567890
 Installation/example-openclaw.json
 ```
 你需要手动 merge，然后重启 OpenClaw gateway。
+
+当前版本 merge 的重点是：
+- 启用 MemoquasarEterna 的 OpenClaw read plugin
+- 为相关 agent 追加 recall 工具的 allow 项
+
+当前版本不会把 MemoquasarEterna 配置成 OpenClaw 的 active memory backend，因此不需要把 `plugins.slots.memory` 指向 MemoquasarEterna。
 
 ## snapshot 机制
 每次成功的顶层 install 都会写入：

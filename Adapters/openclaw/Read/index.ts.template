@@ -46,25 +46,31 @@ export default definePluginEntry({
     for (const AGENT_ID of AGENT_ID_LIST) {
       api.registerTool({
         name: `${AGENT_ID}_memory_vague_recall`,
-        description: `Layer4 vague recall for ${AGENT_ID}. Optional date_window accepts YYYY-MM-DD or YYYY-MM-DD,YYYY-MM-DD. Optional prefer_l2_ratio accepts 0<=x<=1.`,
+        description: `Layer4 vague recall for ${AGENT_ID}. Query is optional. If omitted, returns recent surface L1 overview using recent_days (default 3). Optional date_window accepts YYYY-MM-DD or YYYY-MM-DD,YYYY-MM-DD. Optional prefer_l2_ratio accepts 0<=x<=1 when query is provided.`,
         parameters: {
           type: "object",
           additionalProperties: false,
           properties: {
-            query: { type: "string", minLength: 1 },
+            query: { type: "string" },
+            recent_days: { type: "integer", minimum: 1 },
             date_window: { type: "string" },
             prefer_l2_ratio: { type: "number", minimum: 0, maximum: 1 },
           },
-          required: ["query"],
         },
         async execute(_id, params) {
           try {
-            const args = [VAGUE_ENTRY, "--agent", AGENT_ID, "--query", params.query];
-            if (typeof params.date_window === "string" && params.date_window.trim()) {
-              args.push("--date-window", params.date_window.trim());
-            }
-            if (typeof params.prefer_l2_ratio === "number" && Number.isFinite(params.prefer_l2_ratio)) {
-              args.push("--prefer-l2-ratio", String(params.prefer_l2_ratio));
+            const args = [VAGUE_ENTRY, "--agent", AGENT_ID];
+            const query = typeof params.query === "string" ? params.query.trim() : "";
+            if (query) {
+              args.push("--query", query);
+              if (typeof params.date_window === "string" && params.date_window.trim()) {
+                args.push("--date-window", params.date_window.trim());
+              }
+              if (typeof params.prefer_l2_ratio === "number" && Number.isFinite(params.prefer_l2_ratio)) {
+                args.push("--prefer-l2-ratio", String(params.prefer_l2_ratio));
+              }
+            } else if (typeof params.recent_days === "number" && Number.isFinite(params.recent_days)) {
+              args.push("--recent-days", String(params.recent_days));
             }
             const result = await runPythonJson(args);
             if (!result?.success) {

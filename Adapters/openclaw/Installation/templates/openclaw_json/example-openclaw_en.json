@@ -39,9 +39,6 @@
     ]
   },
   "plugins": {
-    "slots": {
-      "memory": "{{read_plugin_id}}"
-    },
     "entries": {
       "{{read_plugin_id}}": {
         "enabled": true

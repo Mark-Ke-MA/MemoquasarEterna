@@ -52,6 +52,7 @@ from Core.shared_funcs import LoadConfig, output_failure, output_success
 from Core.Layer4_Read.recall_L0 import recall_l0
 from Core.Layer4_Read.recall_L1 import recall_l1
 from Core.Layer4_Read.recall_L2 import recall_l2_vague
+from Core.Layer4_Read.recall_recent import DEFAULT_RECENT_DAYS, recall_recent
 
 
 DEFAULT_L0_LIMIT = 12
@@ -387,7 +388,7 @@ def _assemble_text_with_cap(*, l1_lines: list[str], l2_lines: list[str], max_cha
     return '\n'.join(parts).strip()
 
 
-def assemble_vague(*, repo_root: str | None = None, agent_id: str, query: str, l0_limit: int = DEFAULT_L0_LIMIT, l1_limit: int = DEFAULT_L1_LIMIT, l2_limit: int = DEFAULT_L2_LIMIT, final_limit: int = DEFAULT_FINAL_LIMIT, recency_alpha: float = DEFAULT_RECENCY_ALPHA, date_window: str | None = None, prefer_l2_ratio: float | None = None, max_chars: int = DEFAULT_MAX_CHARS) -> dict[str, Any]:
+def _assemble_semantic_vague(*, repo_root: str | None = None, agent_id: str, query: str, l0_limit: int = DEFAULT_L0_LIMIT, l1_limit: int = DEFAULT_L1_LIMIT, l2_limit: int = DEFAULT_L2_LIMIT, final_limit: int = DEFAULT_FINAL_LIMIT, recency_alpha: float = DEFAULT_RECENCY_ALPHA, date_window: str | None = None, prefer_l2_ratio: float | None = None, max_chars: int = DEFAULT_MAX_CHARS) -> dict[str, Any]:
     cfg = LoadConfig(repo_root)
     overall_config = cfg.overall_config
     today = _current_local_date(overall_config)
@@ -477,6 +478,7 @@ def assemble_vague(*, repo_root: str | None = None, agent_id: str, query: str, l
 
     return {
         'success': True,
+        'mode': 'semantic_vague',
         'query': query,
         'query_terms': query_terms,
         'agent_id': agent_id,
@@ -500,12 +502,37 @@ def assemble_vague(*, repo_root: str | None = None, agent_id: str, query: str, l
     }
 
 
+def assemble_vague(*, repo_root: str | None = None, agent_id: str, query: str | None = None, recent_days: int = DEFAULT_RECENT_DAYS, l0_limit: int = DEFAULT_L0_LIMIT, l1_limit: int = DEFAULT_L1_LIMIT, l2_limit: int = DEFAULT_L2_LIMIT, final_limit: int = DEFAULT_FINAL_LIMIT, recency_alpha: float = DEFAULT_RECENCY_ALPHA, date_window: str | None = None, prefer_l2_ratio: float | None = None, max_chars: int = DEFAULT_MAX_CHARS) -> dict[str, Any]:
+    normalized_query = str(query or '').strip()
+    if not normalized_query:
+        return recall_recent(
+            repo_root=repo_root,
+            agent_id=agent_id,
+            recent_days=recent_days,
+            max_chars=max_chars,
+        )
+    return _assemble_semantic_vague(
+        repo_root=repo_root,
+        agent_id=agent_id,
+        query=normalized_query,
+        date_window=date_window,
+        prefer_l2_ratio=prefer_l2_ratio,
+        l0_limit=l0_limit,
+        l1_limit=l1_limit,
+        l2_limit=l2_limit,
+        final_limit=final_limit,
+        recency_alpha=recency_alpha,
+        max_chars=max_chars,
+    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Layer4 vague recall entry')
     parser.add_argument('--agent', required=True, help='目标 agent_id')
-    parser.add_argument('--query', required=True, help='vague recall 查询文本')
-    parser.add_argument('--date-window', default=None, help='可选：YYYY-MM-DD 或 YYYY-MM-DD,YYYY-MM-DD')
-    parser.add_argument('--prefer-l2-ratio', type=float, default=None, help='可选：0 < x < 1；内部映射为 effective_l2_weight = 0.6 * x')
+    parser.add_argument('--query', default=None, help='vague recall 查询文本；不传时进入 recent fallback')
+    parser.add_argument('--recent-days', type=int, default=DEFAULT_RECENT_DAYS, help='仅在 query 为空时生效；默认 3')
+    parser.add_argument('--date-window', default=None, help='可选：YYYY-MM-DD 或 YYYY-MM-DD,YYYY-MM-DD；仅在 query 非空时生效')
+    parser.add_argument('--prefer-l2-ratio', type=float, default=None, help='可选：0 <= x <= 1；内部映射为 effective_l2_weight = 0.6 * x')
     parser.add_argument('--l0-limit', type=int, default=DEFAULT_L0_LIMIT)
     parser.add_argument('--l1-limit', type=int, default=DEFAULT_L1_LIMIT)
     parser.add_argument('--l2-limit', type=int, default=DEFAULT_L2_LIMIT)
@@ -521,6 +548,7 @@ def main() -> None:
             repo_root=args.repo_root,
             agent_id=args.agent,
             query=args.query,
+            recent_days=args.recent_days,
             date_window=args.date_window,
             prefer_l2_ratio=args.prefer_l2_ratio,
             l0_limit=args.l0_limit,
@@ -530,6 +558,7 @@ def main() -> None:
         )
         output_success({
             'success': bool(result.get('success', False)),
+            'mode': str(result.get('mode', '') or ''),
             'assembled_text': str(result.get('assembled_text', '') or ''),
         })
     except Exception as exc:  # noqa: BLE001

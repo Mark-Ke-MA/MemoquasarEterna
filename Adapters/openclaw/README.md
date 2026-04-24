@@ -208,18 +208,22 @@ def some_hook(context: dict) -> Any:
 
 这是 OpenClaw read 适配域。
 
+注意：当前 `Read/` 的定位是 **工具插件 + skill 引导**，而不是 OpenClaw 的 memory backend；当前版本不应通过 `plugins.slots.memory` 将 MemoquasarEterna 设为 active memory plugin。
+
 它当前承载：
 
 - `index.ts.template`
 - `openclaw.plugin.json.template`
 - `installation.sh`
+- `skills/`
 
-这部分的职责是把 `Core/Layer4_Read/` 的读取能力包装成 OpenClaw plugin tools。
+这部分的职责是把 `Core/Layer4_Read/` 的读取能力包装成 OpenClaw plugin tools，并随插件一起安装引导 agent 使用 recall 的 skill。
 
 当前安装脚本会：
 
 - 创建 extension 目录
 - 渲染模板并写出 `index.ts` 与 `openclaw.plugin.json`
+- 复制 `skills/` 目录到真实插件目录
 - 从 `OverallConfig.json` 中读取产品名与 agent 列表
 - 把当前 repo 的绝对路径写入生成后的 plugin 入口
 
@@ -274,7 +278,7 @@ def some_hook(context: dict) -> Any:
 
 `Read/` 主要服务于 Layer4。
 
-它把 `Core/Layer4_Read/` 的读取入口包装成 OpenClaw plugin tools。
+它把 `Core/Layer4_Read/` 的读取入口包装成 OpenClaw plugin tools，并通过 plugin-shipped skill 引导 agent 在回忆类请求下优先使用这些 recall 工具。
 
 当前已形成的主链路是：
 
@@ -285,9 +289,11 @@ OpenClaw plugin tool
 → 返回 recall 结果
 ```
 
+同时，插件会随 `openclaw.plugin.json` 一起声明并安装 `skills/` 目录，使新 session 能自动加载对应 skill。
+
 因此，`Read/` 解决的是：
 
-> 如何把 memory core 的读取能力，以 OpenClaw 原生插件工具的形式暴露出来。
+> 如何把 memory core 的读取能力，以 OpenClaw 原生插件工具的形式暴露出来，并让 agent 更自然地在合适场景下调用这些工具。
 
 ---
 

@@ -3,6 +3,7 @@
   "name": "__PLUGIN_NAME__",
   "description": "OpenClaw tools for clean local-memory Layer4 vague/exact recall",
   "version": "0.1.0",
+  "skills": ["skills/memoquasar-memory-recall"],
   "configSchema": {
     "type": "object",
     "additionalProperties": false,

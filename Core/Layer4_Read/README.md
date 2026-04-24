@@ -46,9 +46,10 @@ Layer4 当前支持两类查询：
 
 输入包括：
 
-- `query`
-- `date_window`（可选）
-- `prefer_l2_ratio`（可选）
+- `query`（可选）
+- `recent_days`（可选，仅在 `query` 为空时生效）
+- `date_window`（可选，仅在 `query` 非空时生效）
+- `prefer_l2_ratio`（可选，仅在 `query` 非空时生效）
 
 #### exact recall
 
@@ -114,6 +115,18 @@ Layer4 当前提供两类最终输出。
 python3 ENTRY_LAYER4_vague.py --agent <agent_id> --query "<query>"
 ```
 
+无 `query` 时走 recent fallback（默认最近 3 天）：
+
+```bash
+python3 ENTRY_LAYER4_vague.py --agent <agent_id>
+```
+
+指定 recent fallback 天数：
+
+```bash
+python3 ENTRY_LAYER4_vague.py --agent <agent_id> --recent-days 5
+```
+
 带 `date_window`：
 
 ```bash
@@ -144,8 +157,14 @@ Layer4 当前主要由以下部分组成：
 
 - `ENTRY_LAYER4_vague.py`
   - vague recall 顶层入口
-  - 调用 L0 / L1 / L2 recall helper
+  - 有 `query` 时调用 L0 / L1 / L2 recall helper
+  - 无 `query` 时切换到 recent fallback
   - 执行 layer weighting、bounded recency modulation、dedupe 与 assemble
+
+- `recall_recent.py`
+  - recent fallback helper
+  - 直接读取最近 N 天 surface L1
+  - 按 recent_days 分档控制字段粒度与字符成本
 
 - `ENTRY_LAYER4_exact.py`
   - exact recall 顶层入口
@@ -173,6 +192,19 @@ Layer4 当前主要由以下部分组成：
 ## Vague recall 设计
 
 Layer4 vague 当前遵循这些核心原则：
+
+### 0. 无 query 时切换到 recent fallback
+
+当 `query` 缺失或为空时，Layer4 vague 不做语义召回，而是直接读取最近 N 天的 surface `L1`。
+
+- `recent_days` 默认 `3`
+- `recent_days <= 0` 视为非法输入
+- `query` 为空时，`date_window` 与 `prefer_l2_ratio` 不生效
+- recent fallback 字段分档为：
+  - `0 < N <= 3`：`summary + topics + decisions + todos + key_items`
+  - `3 < N <= 7`：`summary + topics`
+  - `7 < N`：`summary`
+- 全局字符上限下，低优先级字段会先被舍弃：`decisions/todos -> key_items -> topics -> summary`
 
 ### 1. L0 只做索引，不做最终信息源
 

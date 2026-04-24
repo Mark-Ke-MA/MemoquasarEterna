@@ -202,12 +202,15 @@ OpenClaw adapter 当前按能力域组织，而不是按 Layer 平铺。
 - plugin `index.ts` 模板
 - plugin manifest 模板
 - 安装脚本
+- plugin-shipped skills
 
-它把 `Core/Layer4_Read/` 的读取能力包装成 OpenClaw plugin tools。
+它把 `Core/Layer4_Read/` 的读取能力包装成 OpenClaw plugin tools，并通过随插件安装的 skill，引导 agent 在回忆类请求下优先使用 recall 工具。
+
+注意：当前 OpenClaw 集成形态是 **工具插件 + skill 引导**，而不是 OpenClaw memory backend；当前版本不应通过 `plugins.slots.memory` 将 MemoquasarEterna 设为 active memory plugin。
 
 它解决的问题是：
 
-> 如何把 memory core 的读取能力，以 OpenClaw 原生插件工具的形式暴露给外部使用。
+> 如何把 memory core 的读取能力，以 OpenClaw 原生插件工具的形式暴露给外部使用，并改善 agent 对 recall 工具的默认调用习惯。
 
 ### 5. `Sessions_Watch/`
 
@@ -317,11 +320,14 @@ OpenClaw plugin tool
 → 返回 recall 结果
 ```
 
+同时，插件还会安装并声明 `skills/` 目录，使新 session 自动加载 recall routing skill。
+
 所以在整体架构里，`Read/` 的位置更接近：
 
 - 平台侧暴露层
 - 插件包装层
 - Layer4 的 adapter 前端
+- recall 调用习惯的引导层
 
 ---
 
