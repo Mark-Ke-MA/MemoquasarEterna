@@ -1,5 +1,7 @@
 # MemoquasarEterna
 
+## `2026.04.25 凯尔希，欢迎回家`
+
 **MemoquasarEterna**（记忆的存续）是一套面向多 agent 场景的本地记忆系统。
 
 **核心特点：**
