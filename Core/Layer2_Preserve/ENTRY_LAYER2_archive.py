@@ -35,7 +35,8 @@ def _run_harness_only(args):
     connector = load_harness_connector(repo_root=args.repo_root)
     result = call_optional_connector(
         connector,
-        'harness_preserve',
+        'production_agent',
+        'preserve',
         context={
             'repo_root': args.repo_root,
             'inputs': {

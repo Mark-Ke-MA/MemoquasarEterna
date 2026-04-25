@@ -84,7 +84,8 @@ def build_install_snapshot(*, repo_root: str | Path, trigger: str, install_resul
     steps = install_result.get('steps') if isinstance(install_result.get('steps'), list) else []
     step_map = {str(step.get('name', '')): step for step in steps if isinstance(step, dict)}
     core_raw = step_map.get('core_install', {}).get('raw', {}) if isinstance(step_map.get('core_install'), dict) else {}
-    harness_raw = step_map.get('harness_install', {}).get('raw', {}) if isinstance(step_map.get('harness_install'), dict) else {}
+    harness_memory_worker_raw = step_map.get('harness_memory_worker_install', {}).get('raw', {}) if isinstance(step_map.get('harness_memory_worker_install'), dict) else {}
+    harness_production_agent_raw = step_map.get('harness_production_agent_install', {}).get('raw', {}) if isinstance(step_map.get('harness_production_agent_install'), dict) else {}
 
     snapshot = {
         'schema_version': SNAPSHOT_SCHEMA_VERSION,
@@ -120,7 +121,8 @@ def build_install_snapshot(*, repo_root: str | Path, trigger: str, install_resul
             'weekly_decay_cron_time': overall_config.get('weekly_decay_cron_time'),
         },
         'core_install': core_raw,
-        'harness_install': harness_raw,
+        'harness_memory_worker_install': harness_memory_worker_raw,
+        'harness_production_agent_install': harness_production_agent_raw,
         'steps': [
             {
                 'name': step.get('name'),

@@ -80,7 +80,8 @@ def run_archive_stage1(*, repo_root: str | None = None, week: str | None = None,
     connector = load_harness_connector(repo_root=repo_root, harness=str(cfg.overall_config.get('harness', 'openclaw') or 'openclaw'))
     call_optional_connector(
         connector,
-        'harness_preserve',
+        'production_agent',
+        'preserve',
         context={
             'repo_root': repo_root,
             'inputs': {

@@ -39,13 +39,13 @@ Layer1 会读取 `OverallConfig.json` 中与以下内容相关的字段：
 
 Layer1 通过固定 connector 接口使用 harness 能力：
 
-- `call_llm`（必选）
-- `harness_clean`（可选）
+- `memory_worker.call_llm`（必选）
+- `memory_worker.clean_runtime`（可选）
 
 其中：
 
-- `call_llm` 用于 Stage3 与 Stage4 的语义处理
-- `harness_clean` 若存在，则在 Stage1 与 Layer3 Phase0 等固定位置调用
+- `memory_worker.call_llm` 用于 Stage3 与 Stage4 的语义处理
+- `memory_worker.clean_runtime` 若存在，则在 Stage1 与 Layer3 Phase0 等固定位置调用
 
 ---
 
@@ -165,7 +165,7 @@ Layer1 当前由 9 个 stage 构成。
 
 - 调用 `ENTRY_LAYER0.py`
 - 初始化 `plan.json`
-- 若 `harness_clean` 存在，则先执行对应的 harness 清理逻辑
+- 若 `memory_worker.clean_runtime` 存在，则先执行对应的 worker runtime 清理逻辑
 - 处理无对话与极低信息日的早停分支
 - 支持仅写 staging 的模式
 

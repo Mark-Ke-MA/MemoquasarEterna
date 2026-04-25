@@ -11,7 +11,8 @@ def run_stage1(*, repo_root: str | Path | None = None) -> dict[str, Any]:
     connector = load_harness_connector(repo_root=repo_root)
     result = call_optional_connector(
         connector,
-        'harness_clean',
+        'memory_worker',
+        'clean_runtime',
         context={
             'repo_root': repo_root,
             'inputs': {},

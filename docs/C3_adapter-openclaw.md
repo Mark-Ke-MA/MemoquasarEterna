@@ -90,14 +90,17 @@ OpenClaw runtime / plugin / session environment
 
 `Core/` 关心：
 
-- `call_llm`
-- `prerequisites`
-- `install`
-- `uninstall`
-- `extract`
-- `harness_clean`
-- `harness_preserve`
-- `harness_decay`
+- `memory_worker.call_llm`
+- `memory_worker.clean_runtime`
+- `memory_worker.prerequisites`
+- `memory_worker.install`
+- `memory_worker.uninstall`
+- `production_agent.extract`
+- `production_agent.preserve`
+- `production_agent.decay`
+- `production_agent.prerequisites`
+- `production_agent.install`
+- `production_agent.uninstall`
 
 ### OpenClaw adapter 关心什么
 
@@ -134,14 +137,17 @@ Adapters/openclaw/CONNECTOR.py
 
 当前它暴露的映射包括：
 
-- `call_llm`
-- `prerequisites`
-- `install`
-- `uninstall`
-- `extract`
-- `harness_clean`
-- `harness_preserve`
-- `harness_decay`
+- `memory_worker.call_llm`
+- `memory_worker.clean_runtime`
+- `memory_worker.prerequisites`
+- `memory_worker.install`
+- `memory_worker.uninstall`
+- `production_agent.extract`
+- `production_agent.preserve`
+- `production_agent.decay`
+- `production_agent.prerequisites`
+- `production_agent.install`
+- `production_agent.uninstall`
 
 因此，理解 OpenClaw adapter 的第一步，通常就是理解：
 
@@ -191,7 +197,7 @@ OpenClaw adapter 当前按能力域组织，而不是按 Layer 平铺。
 
 - runtime 清理
 - worker session 清理
-- `harness_clean` hook
+- `memory_worker.clean_runtime` hook
 
 ### 4. `Read/`
 
@@ -271,7 +277,7 @@ OpenClaw worker runtime
 ```text
 Core Layer2 / Layer3
   ↓
-harness_preserve / harness_decay / harness_clean
+production_agent.preserve / production_agent.decay / memory_worker.clean_runtime
   ↓
 Adapters/openclaw/...
 ```

@@ -11,7 +11,8 @@ def run_stage1(*, repo_root: str | Path | None = None, week: str | None = None, 
     connector = load_harness_connector(repo_root=repo_root)
     result = call_optional_connector(
         connector,
-        'harness_decay',
+        'production_agent',
+        'decay',
         context={
             'repo_root': repo_root,
             'inputs': {

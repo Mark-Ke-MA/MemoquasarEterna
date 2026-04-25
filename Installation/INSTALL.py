@@ -75,9 +75,11 @@ def _critical_failure_payload(*, step_results: list[dict[str, Any]], failed_step
 def _step_display_name(name: str) -> str:
     mapping = {
         'core_prerequisites': 'Core prerequisites',
-        'harness_prerequisites': 'Harness prerequisites',
+        'harness_memory_worker_prerequisites': 'Harness memory worker prerequisites',
+        'harness_production_agent_prerequisites': 'Harness production agent prerequisites',
         'core_install': 'Core install',
-        'harness_install': 'Harness install',
+        'harness_memory_worker_install': 'Harness memory worker install',
+        'harness_production_agent_install': 'Harness production agent install',
     }
     return mapping.get(name, name)
 
@@ -164,8 +166,10 @@ def run_install(*, repo_root: str | Path | None = None, dry_run: bool = False, t
     repo_root_path = Path(repo_root) if repo_root is not None else _repo_root_from_here()
     connector = load_harness_connector(repo_root=repo_root_path)
     connector_where = f'connector({repo_root_path})'
-    harness_prerequisites = get_required_connector_callable(connector, 'prerequisites', where=connector_where)
-    harness_install = get_required_connector_callable(connector, 'install', where=connector_where)
+    harness_mw_prerequisites = get_required_connector_callable(connector, 'memory_worker', 'prerequisites', where=connector_where)
+    harness_pa_prerequisites = get_required_connector_callable(connector, 'production_agent', 'prerequisites', where=connector_where)
+    harness_mw_install = get_required_connector_callable(connector, 'memory_worker', 'install', where=connector_where)
+    harness_pa_install = get_required_connector_callable(connector, 'production_agent', 'install', where=connector_where)
 
     steps: list[dict[str, Any]] = []
 
@@ -178,13 +182,22 @@ def run_install(*, repo_root: str | Path | None = None, dry_run: bool = False, t
             message='Core prerequisites 未通过，安装已中止。',
         )
 
-    harness_prereq_result = harness_prerequisites(repo_root=repo_root_path, dry_run=dry_run)
-    steps.append(_step_payload(name='harness_prerequisites', critical=True, result=harness_prereq_result))
-    if not bool(harness_prereq_result.get('success', False)):
+    harness_mw_prereq_result = harness_mw_prerequisites(repo_root=repo_root_path, dry_run=dry_run)
+    steps.append(_step_payload(name='harness_memory_worker_prerequisites', critical=True, result=harness_mw_prereq_result))
+    if not bool(harness_mw_prereq_result.get('success', False)):
         return _critical_failure_payload(
             step_results=steps,
-            failed_step='harness_prerequisites',
-            message='Harness prerequisites 未通过，安装已中止。',
+            failed_step='harness_memory_worker_prerequisites',
+            message='Harness memory worker prerequisites 未通过，安装已中止。',
+        )
+
+    harness_pa_prereq_result = harness_pa_prerequisites(repo_root=repo_root_path, dry_run=dry_run)
+    steps.append(_step_payload(name='harness_production_agent_prerequisites', critical=True, result=harness_pa_prereq_result))
+    if not bool(harness_pa_prereq_result.get('success', False)):
+        return _critical_failure_payload(
+            step_results=steps,
+            failed_step='harness_production_agent_prerequisites',
+            message='Harness production agent prerequisites 未通过，安装已中止。',
         )
 
     core_install_result = run_core_install(repo_root=repo_root_path, dry_run=dry_run)
@@ -196,17 +209,26 @@ def run_install(*, repo_root: str | Path | None = None, dry_run: bool = False, t
             message='Core install 失败，安装已中止。',
         )
 
-    harness_install_result = harness_install(repo_root=repo_root_path, dry_run=dry_run)
-    steps.append(_step_payload(name='harness_install', critical=True, result=harness_install_result))
-    if not bool(harness_install_result.get('success', False)):
+    harness_mw_install_result = harness_mw_install(repo_root=repo_root_path, dry_run=dry_run)
+    steps.append(_step_payload(name='harness_memory_worker_install', critical=True, result=harness_mw_install_result))
+    if not bool(harness_mw_install_result.get('success', False)):
         return _critical_failure_payload(
             step_results=steps,
-            failed_step='harness_install',
-            message='Harness install 失败。',
+            failed_step='harness_memory_worker_install',
+            message='Harness memory worker install 失败。',
+        )
+
+    harness_pa_install_result = harness_pa_install(repo_root=repo_root_path, dry_run=dry_run)
+    steps.append(_step_payload(name='harness_production_agent_install', critical=True, result=harness_pa_install_result))
+    if not bool(harness_pa_install_result.get('success', False)):
+        return _critical_failure_payload(
+            step_results=steps,
+            failed_step='harness_production_agent_install',
+            message='Harness production agent install 失败。',
         )
 
     warnings: list[str] = []
-    for result in (core_prereq_result, harness_prereq_result, core_install_result, harness_install_result):
+    for result in (core_prereq_result, harness_mw_prereq_result, harness_pa_prereq_result, core_install_result, harness_mw_install_result, harness_pa_install_result):
         if isinstance(result, dict) and isinstance(result.get('warnings'), list):
             warnings.extend(str(x) for x in result['warnings'])
 

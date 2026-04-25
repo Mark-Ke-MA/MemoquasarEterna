@@ -326,11 +326,11 @@ Layer3 decision making
 
 例如 core 只关心：
 
-- 如何 `extract`
-- 如何 `call_llm`
-- 是否存在 `harness_clean`
-- 是否存在 `harness_preserve`
-- 是否存在 `harness_decay`
+- memory worker 如何 `call_llm`
+- memory worker 如何 `clean_runtime`
+- production agent 如何 `extract`
+- production agent 如何 `preserve`
+- production agent 如何 `decay`
 
 至于这些能力在 adapter 内部如何组织，交给 adapter 自己决定。
 
@@ -338,17 +338,20 @@ Layer3 decision making
 
 当前 connector 约定包括：
 
-- 必选：
+- `memory_worker`：
   - `call_llm`
+  - `clean_runtime`
   - `prerequisites`
   - `install`
   - `uninstall`
-  - `extract`
 
-- 可选：
-  - `harness_clean`
-  - `harness_preserve`
-  - `harness_decay`
+- `production_agent`：
+  - `extract`
+  - `preserve`
+  - `decay`
+  - `prerequisites`
+  - `install`
+  - `uninstall`
 
 这样的好处是：
 

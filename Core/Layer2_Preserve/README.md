@@ -48,7 +48,7 @@ Layer2 读取 `OverallConfig.json` 中与以下内容相关的字段：
 
 Layer2 通过固定 connector 接口使用 harness 能力：
 
-- `harness_preserve`（可选）
+- `production_agent.preserve`（可选）
 
 若该接口存在，则会在 archive 主链入口的固定位置调用；若不存在，则静默跳过。
 

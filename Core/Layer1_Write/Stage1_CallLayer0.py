@@ -338,7 +338,8 @@ def run_stage1(*, target_date: str, repo_root: str | None = None, agent: str | N
     try:
         maintenance_result = call_optional_connector(
             _CONNECTOR,
-            'harness_clean',
+            'memory_worker',
+            'clean_runtime',
             context={
                 'repo_root': repo_root,
                 'inputs': {

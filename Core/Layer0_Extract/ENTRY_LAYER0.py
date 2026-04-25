@@ -19,7 +19,7 @@ from Core.harness_connector import get_required_connector_callable, load_harness
 
 def load_fetch_layer0_input(harness: str):
     connector = load_harness_connector(repo_root=ROOT, harness=harness)
-    return get_required_connector_callable(connector, 'extract')
+    return get_required_connector_callable(connector, 'production_agent', 'extract')
 
 
 def dbg(msg: str):

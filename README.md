@@ -274,14 +274,17 @@ Installation/.install_logs/
 顶层 `INSTALL.py` 当前按以下顺序编排：
 
 1. Core prerequisites
-2. Harness prerequisites
-3. Core install
-4. Harness install
+2. Harness memory worker prerequisites
+3. Harness production agent prerequisites
+4. Core install
+5. Harness memory worker install
+6. Harness production agent install
 
 顶层 `UNINSTALL.py` 当前按以下顺序编排：
 
 1. Core uninstall
-2. Harness uninstall
+2. Harness memory worker uninstall
+3. Harness production agent uninstall
 
 这使得：
 

@@ -160,9 +160,22 @@ def _ensure_daily_cron(repo_root: Path, *, dry_run: bool = False) -> dict:
     end_marker = f"# END {marker}"
 
     exact_exists = desired_block in current
-    marked_lines = [ln for ln in current_lines if begin_marker in ln or end_marker in ln]
     command_re = re.compile(r"(^|\s).*/Sessions_Watch/Mechanisms/sessions_watch_runtime\.py\s+--all(\s|$)")
-    same_command = [ln for ln in current_lines if command_re.search(ln)]
+    any_session_watch_begin_re = re.compile(r"^# BEGIN ai\.memory\.memoquasareterna\.openclaw\.session-watch\.daily-init\.")
+    any_session_watch_end_re = re.compile(r"^# END ai\.memory\.memoquasareterna\.openclaw\.session-watch\.daily-init\.")
+
+    has_current_block = False
+    unmanaged_same_command: list[str] = []
+    inside_any_session_watch_block = False
+    for ln in current_lines:
+        if ln == begin_marker:
+            has_current_block = True
+        if any_session_watch_begin_re.search(ln):
+            inside_any_session_watch_block = True
+        if command_re.search(ln) and not inside_any_session_watch_block:
+            unmanaged_same_command.append(ln)
+        if any_session_watch_end_re.search(ln):
+            inside_any_session_watch_block = False
 
     if exact_exists:
         return {
@@ -172,14 +185,14 @@ def _ensure_daily_cron(repo_root: Path, *, dry_run: bool = False) -> dict:
             "status": "exists",
         }
 
-    if same_command and not marked_lines:
+    if unmanaged_same_command:
         output_failure(
             "检测到已有相同的 session-watch daily init cron 任务（未带管理标记），为避免重复安装已中止。\n"
             "请使用 crontab -l 检查并手动移除旧任务后再重新 install。"
         )
 
     new_lines = current_lines.copy()
-    if marked_lines:
+    if has_current_block:
         filtered: list[str] = []
         inside_block = False
         for ln in new_lines:
@@ -201,7 +214,7 @@ def _ensure_daily_cron(repo_root: Path, *, dry_run: bool = False) -> dict:
             "changed": True,
             "dry_run": True,
             "cron_block": desired_block,
-            "status": "would-update" if marked_lines else "would-create",
+            "status": "would-update" if has_current_block else "would-create",
         }
 
     result = _crontab_write(new_content)
@@ -211,7 +224,7 @@ def _ensure_daily_cron(repo_root: Path, *, dry_run: bool = False) -> dict:
         "changed": True,
         "dry_run": False,
         "cron_block": desired_block,
-        "status": "updated" if marked_lines else "created",
+        "status": "updated" if has_current_block else "created",
         "crontab_write": result,
     }
 

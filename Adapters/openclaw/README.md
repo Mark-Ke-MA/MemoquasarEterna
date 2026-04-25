@@ -81,16 +81,19 @@ Adapters/openclaw/
 当前 connector 约定分成：
 
 #### 必选接口
-- `call_llm`
-- `prerequisites`
-- `install`
-- `uninstall`
-- `extract`
+- `memory_worker.call_llm`
+- `memory_worker.prerequisites`
+- `memory_worker.install`
+- `memory_worker.uninstall`
+- `production_agent.extract`
+- `production_agent.prerequisites`
+- `production_agent.install`
+- `production_agent.uninstall`
 
 #### 可选接口
-- `harness_clean`
-- `harness_preserve`
-- `harness_decay`
+- `memory_worker.clean_runtime`
+- `production_agent.preserve`
+- `production_agent.decay`
 
 这种结构让：
 
@@ -119,28 +122,37 @@ def some_hook(context: dict) -> Any:
 
 当前 `CONNECTOR.py` 暴露：
 
-- `call_llm`
+- `memory_worker.call_llm`
   - 指向 `openclaw_call_LLM.openclaw_call_subagent_readandwrite`
 
-- `prerequisites`
-  - 指向 `Installation/PREREQUISITES.py`
+- `memory_worker.prerequisites`
+  - 指向 `Installation/MEMORY_WORKER_PREREQUISITES.py`
 
-- `install`
-  - 指向 `Installation/INSTALL.py`
+- `memory_worker.install`
+  - 指向 `Installation/MEMORY_WORKER_INSTALL.py`
 
-- `uninstall`
-  - 指向 `Installation/UNINSTALL.py`
+- `memory_worker.uninstall`
+  - 指向 `Installation/MEMORY_WORKER_UNINSTALL.py`
 
-- `extract`
+- `production_agent.extract`
   - 指向 `Extract/core.py` 中的 `fetch_openclaw_layer0_input`
 
-- `harness_clean`
+- `production_agent.prerequisites`
+  - 指向 `Installation/PRODUCTION_AGENT_PREREQUISITES.py`
+
+- `production_agent.install`
+  - 指向 `Installation/PRODUCTION_AGENT_INSTALL.py`
+
+- `production_agent.uninstall`
+  - 指向 `Installation/PRODUCTION_AGENT_UNINSTALL.py`
+
+- `memory_worker.clean_runtime`
   - 指向 `openclaw_runtime_maintenance.openclaw_harness_maintenance_hook`
 
-- `harness_preserve`
+- `production_agent.preserve`
   - 指向 `Sessions_Watch/Preserve/entry.py`
 
-- `harness_decay`
+- `production_agent.decay`
   - 指向 `Sessions_Watch/Decay/entry.py`
 
 ---
@@ -170,7 +182,7 @@ def some_hook(context: dict) -> Any:
 当前主要承接：
 
 - memory worker sessions 清理
-- `harness_clean` hook
+- `memory_worker.clean_runtime` hook
 
 ### `Extract/`
 
@@ -197,8 +209,12 @@ def some_hook(context: dict) -> Any:
 
 当前主要承接：
 
-- `INSTALL.py`
-- `UNINSTALL.py`
+- `MEMORY_WORKER_PREREQUISITES.py`
+- `MEMORY_WORKER_INSTALL.py`
+- `MEMORY_WORKER_UNINSTALL.py`
+- `PRODUCTION_AGENT_PREREQUISITES.py`
+- `PRODUCTION_AGENT_INSTALL.py`
+- `PRODUCTION_AGENT_UNINSTALL.py`
 - memory worker workspace 模板与安装
 - openclaw.json merge example 的渲染
 
@@ -243,11 +259,11 @@ def some_hook(context: dict) -> Any:
 
 - `Preserve/`
   - session watch preserve 接口位
-  - 当前挂在 `harness_preserve`
+  - 当前挂在 `production_agent.preserve`
 
 - `Decay/`
   - session watch decay 接口位
-  - 当前挂在 `harness_decay`
+  - 当前挂在 `production_agent.decay`
 
 在业务上，`Sessions_Watch/` 承接的是：
 

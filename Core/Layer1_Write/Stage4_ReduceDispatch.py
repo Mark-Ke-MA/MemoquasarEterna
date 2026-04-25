@@ -34,7 +34,7 @@ from Core.harness_connector import get_required_connector_callable, load_harness
 
 HARNESS = LoadConfig(ROOT).overall_config.get('harness', 'openclaw')
 _connector = load_harness_connector(repo_root=ROOT, harness=HARNESS)
-call_LLM = get_required_connector_callable(_connector, 'call_llm')
+call_LLM = get_required_connector_callable(_connector, 'memory_worker', 'call_llm')
 
 
 EXPECTED_REDUCE_KEYS = (

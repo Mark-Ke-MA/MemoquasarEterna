@@ -113,6 +113,8 @@ def _remove_marked_block(current: str, *, marker: str) -> tuple[str, dict[str, A
             inside_block = True
             if pending_title_idx is not None and pending_title_idx == len(kept) - 1:
                 removed.append(kept.pop())
+                if kept and kept[-1] == '#':
+                    removed.append(kept.pop())
             pending_title_idx = None
             removed.append(ln)
             continue

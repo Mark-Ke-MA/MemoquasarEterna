@@ -47,15 +47,15 @@ Layer3 读取 `OverallConfig.json` 中与以下内容相关的字段：
 
 Layer3 通过固定 connector 接口使用 harness 能力：
 
-- `call_llm`（必选）
-- `harness_clean`（可选）
-- `harness_decay`（可选）
+- `memory_worker.call_llm`（必选）
+- `memory_worker.clean_runtime`（可选）
+- `production_agent.decay`（可选）
 
 其中：
 
-- `call_llm` 由 Phase2 / Phase3 的 reduce 阶段使用
-- `harness_clean` 在 Phase0 的固定位置调用
-- `harness_decay` 在 Phase4 的固定位置调用
+- `memory_worker.call_llm` 由 Phase2 / Phase3 的 reduce 阶段使用
+- `memory_worker.clean_runtime` 在 Phase0 的固定位置调用
+- `production_agent.decay` 在 Phase4 的固定位置调用
 
 ---
 
@@ -192,7 +192,7 @@ Layer3 当前采用 **Phase > Stage** 结构，共分为 5 个 phase。
 职责：
 
 - 在真正进入 decay 前，先触发 Layer2 preserve
-- 调用 `harness_clean`（如果存在）
+- 调用 `memory_worker.clean_runtime`（如果存在）
 - 调用 Layer2 archive 主链
 
 它是 Layer3 的安全前置阶段。
@@ -227,7 +227,7 @@ Layer3 当前采用 **Phase > Stage** 结构，共分为 5 个 phase。
 职责：
 
 - 承接 Layer3 中唯一允许的 harness-specific decay 行为
-- 调用 `harness_decay`（如果存在）
+- 调用 `production_agent.decay`（如果存在）
 
 当前它用于把 harness-side runtime/watch 相关的衰减逻辑与 core memory decay 分离。
 
