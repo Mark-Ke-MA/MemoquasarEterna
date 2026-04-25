@@ -94,7 +94,7 @@
   Installation/
   Maintenance/
   docs/
-  OverallConfig.json
+  OverallConfig-template.json
   README.md
 ```
 
@@ -145,11 +145,21 @@ git clone <repo-url> {code_dir}
 cd {code_dir}
 ```
 
-### 2. 修改配置
+### 2. 生成并修改配置
 
-先编辑：
+首次安装时，`Installation/INSTALL.py` 会在缺少本地配置时，从模板生成：
 
 - `OverallConfig.json`
+- `Adapters/openclaw/OpenclawConfig.json`
+
+也可以在安装前手动复制：
+
+```bash
+cp OverallConfig-template.json OverallConfig.json
+cp Adapters/openclaw/OpenclawConfig-template.json Adapters/openclaw/OpenclawConfig.json
+```
+
+然后编辑本地配置文件。`Config-template.json` 由仓库跟踪，`Config.json` 是本机私有配置，不应提交。
 
 安装前至少应明确填写：
 

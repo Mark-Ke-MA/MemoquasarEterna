@@ -3,4 +3,7 @@ __pycache__/
 *.pyc
 *.pyo
 Installation/.install_logs/
+Installation/example-openclaw.json
 Adapters/openclaw/Sessions_Watch/Registries/
+OverallConfig.json
+Adapters/openclaw/OpenclawConfig.json

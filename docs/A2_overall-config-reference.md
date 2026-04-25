@@ -7,6 +7,8 @@
 
 - `docs/A1_installation-guide.md`
 
+仓库跟踪的默认模板是 `OverallConfig-template.json`。本地实际运行读取 `OverallConfig.json`；如果它不存在，`Installation/INSTALL.py` 会从模板生成一份。请只修改本地 `OverallConfig.json`，不要提交本机私有配置。
+
 ---
 
 ## 使用原则

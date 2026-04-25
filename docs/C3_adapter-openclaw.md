@@ -387,6 +387,8 @@ OpenClaw adapter 当前主要依赖两层配置：
 - `OverallConfig.json` 负责仓库级与产品级配置
 - `OpenclawConfig.json` 负责 OpenClaw adapter 级配置
 
+仓库跟踪的是对应的 `Config-template.json` 文件；本地实际运行读取 `Config.json`。顶层 install 会在本地配置缺失时从模板生成，并在 `schema_version` 与模板不一致时提前中止，避免旧 schema 配置进入 core 运行链路。
+
 ---
 
 ## 当前成熟度

@@ -32,7 +32,7 @@
   Installation/
   Maintenance/
   docs/
-  OverallConfig.json
+  OverallConfig-template.json
   README.md
 ```
 

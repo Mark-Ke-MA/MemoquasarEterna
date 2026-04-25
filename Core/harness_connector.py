@@ -2,6 +2,7 @@
 
 负责：
 - 加载 Adapters/{harness}/CONNECTOR.py
+- 解析 connector 顶层 callable
 - 解析 memory_worker / production_agent role 下的必选 / 可选 callable
 - 统一调用固定 connector 接口
 """
@@ -60,6 +61,17 @@ def get_connector_role(connector: dict[str, Any] | None, role: str, *, where: st
     return value
 
 
+def get_required_connector_entry(connector: dict[str, Any] | None, key: str, *, where: str = 'connector') -> Callable[..., Any]:
+    if connector is None:
+        raise KeyError(f'{where} 缺少 connector')
+    value = connector.get(key)
+    if value is None:
+        raise KeyError(f'{where} 缺少必选顶层接口: {key}')
+    if not callable(value):
+        raise TypeError(f'{where}.{key} 必须是 callable')
+    return value
+
+
 def get_required_connector_callable(connector: dict[str, Any] | None, role: str, key: str, *, where: str = 'connector') -> Callable[..., Any]:
     role_connector = get_connector_role(connector, role, where=where)
     if role_connector is None:
@@ -96,6 +108,7 @@ __all__ = [
     'get_configured_harness',
     'load_harness_connector',
     'get_connector_role',
+    'get_required_connector_entry',
     'get_required_connector_callable',
     'get_optional_connector_callable',
     'call_optional_connector',

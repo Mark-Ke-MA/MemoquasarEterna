@@ -47,7 +47,7 @@
 
 ```text
 Adapters/openclaw/
-  OpenclawConfig.json
+  OpenclawConfig-template.json
   CONNECTOR.py
   openclaw_shared_funcs.py
 
@@ -406,6 +406,8 @@ OpenClaw plugin tool
 - `sessions_files_archive_dir`
 
 其中 `adapter_dirname` 用于让 adapter 内部路径组织保持可配置，而不是写死目录名。
+
+仓库跟踪的默认模板是 `OpenclawConfig-template.json`。本地实际运行读取 `OpenclawConfig.json`；如果它不存在，顶层 `Installation/INSTALL.py` 会从模板生成一份。请只修改本地 `OpenclawConfig.json`，不要提交本机私有配置。
 
 ---
 

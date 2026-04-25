@@ -87,10 +87,11 @@ CONNECTOR = {
 
 ## 当前固定键集合
 
-当前 contract 按 agent role 分为两个子空间：
+当前 contract 包含一个 harness 顶层配置入口，并按 agent role 分为两个能力子空间：
 
 ```python
 CONNECTOR = {
+    'ensure_config': ...,
     'memory_worker': {
         'call_llm': ...,
         'clean_runtime': ...,
@@ -108,6 +109,18 @@ CONNECTOR = {
     },
 }
 ```
+
+### `ensure_config`
+
+面向当前 harness adapter 的本地配置引导。
+
+固定语义是：
+
+- 检查 adapter 本地 `Config.json` 是否存在
+- 不存在时从 adapter 自己的 `Config-template.json` 生成
+- 校验本地 config 的 `schema_version` 与当前 template 一致
+
+这个接口属于 harness adapter 顶层，不属于 `memory_worker` 或 `production_agent`。
 
 ### `memory_worker`
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from . import openclaw_call_LLM, openclaw_runtime_maintenance
 from .Extract.core import fetch_openclaw_layer0_input
+from .Installation.ENSURE_CONFIG import run_ensure_config as ensure_config_entry
 from .Installation.MEMORY_WORKER_PREREQUISITES import run_prerequisites as memory_worker_prerequisites_entry
 from .Installation.MEMORY_WORKER_INSTALL import run_install as memory_worker_install_entry
 from .Installation.MEMORY_WORKER_UNINSTALL import run_uninstall as memory_worker_uninstall_entry
@@ -12,6 +13,7 @@ from .Sessions_Watch.Preserve.entry import entry as sessions_watch_preserve_entr
 from .Sessions_Watch.Decay.entry import entry as sessions_watch_decay_entry
 
 OPENCLAW_NEW_CONNECTOR = {
+    'ensure_config': ensure_config_entry,
     'memory_worker': {
         'call_llm': openclaw_call_LLM.openclaw_call_subagent_readandwrite,
         'clean_runtime': openclaw_runtime_maintenance.openclaw_harness_maintenance_hook,

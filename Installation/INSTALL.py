@@ -10,7 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from Core.harness_connector import get_required_connector_callable, load_harness_connector
+from Core.harness_connector import get_required_connector_callable, get_required_connector_entry, load_harness_connector
+from Installation.Config import ensure_install_configs
 from Installation.Core.install import run_install as run_core_install
 from Installation.Core.prerequisites import run_prerequisites as run_core_prerequisites
 from Installation.install_log_utils import build_install_snapshot, write_install_snapshot
@@ -75,6 +76,8 @@ def _critical_failure_payload(*, step_results: list[dict[str, Any]], failed_step
 def _step_display_name(name: str) -> str:
     mapping = {
         'core_prerequisites': 'Core prerequisites',
+        'config_bootstrap': 'Config bootstrap',
+        'harness_config_bootstrap': 'Harness config bootstrap',
         'harness_memory_worker_prerequisites': 'Harness memory worker prerequisites',
         'harness_production_agent_prerequisites': 'Harness production agent prerequisites',
         'core_install': 'Core install',
@@ -164,14 +167,37 @@ def _format_install_result(result: dict[str, Any]) -> str:
 
 def run_install(*, repo_root: str | Path | None = None, dry_run: bool = False, trigger: str = 'install') -> dict[str, Any]:
     repo_root_path = Path(repo_root) if repo_root is not None else _repo_root_from_here()
-    connector = load_harness_connector(repo_root=repo_root_path)
+    steps: list[dict[str, Any]] = []
+
+    config_result = ensure_install_configs(repo_root=repo_root_path, dry_run=dry_run)
+    steps.append(_step_payload(name='config_bootstrap', critical=True, result=config_result))
+    if not bool(config_result.get('success', False)):
+        return _critical_failure_payload(
+            step_results=steps,
+            failed_step='config_bootstrap',
+            message='Config bootstrap 未通过，安装已中止。',
+        )
+
+    config_details = config_result.get('configs') if isinstance(config_result.get('configs'), dict) else {}
+    overall_config_result = config_details.get('overall') if isinstance(config_details.get('overall'), dict) else {}
+    configured_harness = str(overall_config_result.get('harness', '') or '').strip() or None
+
+    connector = load_harness_connector(repo_root=repo_root_path, harness=configured_harness)
     connector_where = f'connector({repo_root_path})'
+    harness_ensure_config = get_required_connector_entry(connector, 'ensure_config', where=connector_where)
     harness_mw_prerequisites = get_required_connector_callable(connector, 'memory_worker', 'prerequisites', where=connector_where)
     harness_pa_prerequisites = get_required_connector_callable(connector, 'production_agent', 'prerequisites', where=connector_where)
     harness_mw_install = get_required_connector_callable(connector, 'memory_worker', 'install', where=connector_where)
     harness_pa_install = get_required_connector_callable(connector, 'production_agent', 'install', where=connector_where)
 
-    steps: list[dict[str, Any]] = []
+    harness_config_result = harness_ensure_config(repo_root=repo_root_path, dry_run=dry_run)
+    steps.append(_step_payload(name='harness_config_bootstrap', critical=True, result=harness_config_result))
+    if not bool(harness_config_result.get('success', False)):
+        return _critical_failure_payload(
+            step_results=steps,
+            failed_step='harness_config_bootstrap',
+            message='Harness config bootstrap 未通过，安装已中止。',
+        )
 
     core_prereq_result = run_core_prerequisites(repo_root=repo_root_path, dry_run=dry_run)
     steps.append(_step_payload(name='core_prerequisites', critical=True, result=core_prereq_result))
@@ -228,7 +254,7 @@ def run_install(*, repo_root: str | Path | None = None, dry_run: bool = False, t
         )
 
     warnings: list[str] = []
-    for result in (core_prereq_result, harness_mw_prereq_result, harness_pa_prereq_result, core_install_result, harness_mw_install_result, harness_pa_install_result):
+    for result in (config_result, harness_config_result, core_prereq_result, harness_mw_prereq_result, harness_pa_prereq_result, core_install_result, harness_mw_install_result, harness_pa_install_result):
         if isinstance(result, dict) and isinstance(result.get('warnings'), list):
             warnings.extend(str(x) for x in result['warnings'])
 

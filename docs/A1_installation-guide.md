@@ -8,7 +8,7 @@
 
 ## 标准安装顺序
 1. 从 GitHub clone 仓库到本地，作为 `{code_dir}`
-2. 修改 `OverallConfig.json`
+2. 生成并修改本地 `Config.json`
 3. 运行：
 ```bash
 cd {code_dir}
@@ -19,6 +19,19 @@ python Installation/INSTALL.py
    - 将 `Installation/example-openclaw.json` merge 到你的 OpenClaw 配置中
    - 重启 OpenClaw gateway
    - 开一个新 session，使新安装的 plugin-shipped skill 稳定生效
+
+## 配置文件生成
+仓库跟踪的是模板文件：
+- `OverallConfig-template.json`
+- `Adapters/openclaw/OpenclawConfig-template.json`
+
+本地实际运行读取的是：
+- `OverallConfig.json`
+- `Adapters/openclaw/OpenclawConfig.json`
+
+`Installation/INSTALL.py` 会在本地配置缺失时，从对应模板复制生成 `Config.json`。生成后请只修改本地 `Config.json`，不要把本机私有配置提交进 git。
+
+如果本地 `Config.json.schema_version` 与当前模板中的 `schema_version` 不一致，安装会在最前置的 config bootstrap 步骤失败。请先迁移本地配置，再重新安装。
 
 ## 安装前必须明确填写的字段
 至少应填写：
@@ -63,10 +76,14 @@ python Installation/INSTALL.py
 
 ## `INSTALL.py` 会做什么
 顶层安装当前顺序为：
-1. Core prerequisites
-2. Harness prerequisites
-3. Core install
-4. Harness install
+1. Config bootstrap
+2. Harness config bootstrap
+3. Core prerequisites
+4. Harness memory worker prerequisites
+5. Harness production agent prerequisites
+6. Core install
+7. Harness memory worker install
+8. Harness production agent install
 
 ### Core prerequisites
 至少检查：
@@ -149,6 +166,14 @@ python Installation/REFRESH.py
 3. 按当前 config 重新 install
 
 ## 常见问题
+### Config bootstrap 失败
+通常意味着：
+- 本地 `Config.json` 缺失，但当前是 `--dry-run`
+- `Config-template.json` 缺失
+- 本地 `Config.json.schema_version` 与当前模板不一致
+
+非 dry-run 安装会自动从模板生成缺失的本地配置；schema 不一致时需先手动迁移。
+
 ### `code_dir` 被自动修正
 说明 `OverallConfig.json.code_dir` 与当前真实仓库路径不一致；core prerequisites 已自动修正。
 
