@@ -18,9 +18,8 @@
             "{{memory_worker_agentId}}"
           ]
         },
-        "skills": [
-          "_description: 安全边界项。这个 worker 不应该需要任何技能。"
-        ],
+        "_skills_description": "安全边界项。这个 worker 不应该需要任何技能。",
+        "skills": [],
         "tools": {
           "_description": "安全边界项。这个 worker 理论上只需要 write 工具。",
           "allow": [
@@ -31,7 +30,10 @@
       "for agentId in {{production_agent_ids}}: (script expands into per-agent tool patch objects)",
       {
         "id": "{{agentId}}",
-        "_description": "对每个你已经在使用的 agent，不要替换整条 entry；只把下面这些工具名追加到 tools.allow[] 中。",
+        "_description": "对每个你已经在使用的 agent，不要替换整条 entry；只把下面这些技能名追加到 skills[]，并把工具名追加到 tools.allow[] 中。",
+        "skills": [
+          "memoquasar-memory-recall"
+        ],
         "tools": {
           "allow": [
             "{{read_plugin_id}}",
