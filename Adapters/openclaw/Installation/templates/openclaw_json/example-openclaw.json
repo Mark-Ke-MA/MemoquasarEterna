@@ -1,6 +1,7 @@
 {
   "_note": "这是用于合并进 ~/.openclaw/openclaw.json 的示例片段。不要整文件覆盖你自己的 openclaw.json，只合并相关字段。",
   "_warning": "memory worker agent 是专用内部 worker。不要把它当作普通生产级 agent 使用。",
+  "_warning_2": "注意：合并时需要手动删除所有的注释字段（所有以‘_’开头的字段），否则 OpenClaw 可能无法正确解析 JSON。",
   "agents": {
     "list": [
       {
@@ -17,6 +18,9 @@
             "{{memory_worker_agentId}}"
           ]
         },
+        "skills": [
+          "_description: 安全边界项。这个 worker 不应该需要任何技能。"
+        ],
         "tools": {
           "_description": "安全边界项。这个 worker 理论上只需要 write 工具。",
           "allow": [

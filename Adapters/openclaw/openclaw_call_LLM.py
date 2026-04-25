@@ -27,6 +27,18 @@ REQUESTER_SESSION_KEY = os.environ.get("OPENCLAW_LAYER1_REQUESTER_SESSION_KEY", 
 WAIT_TIMEOUT_MS = int(os.environ.get("OPENCLAW_LAYER1_WRITE_RUNTIME_TIMEOUT_MS", "1800000"))
 
 
+def _with_silent_completion_contract(prompt: str) -> str:
+    return (
+        f"{prompt.rstrip()}\n\n"
+        "[MemoquasarEterna OpenClaw adapter instruction]\n"
+        "After completing every required file write or tool action, your final assistant response "
+        "MUST be exactly:\n"
+        "NO_REPLY\n"
+        "Do not summarize, explain, report status, add punctuation, wrap it in markdown, or send "
+        "any other completion message."
+    )
+
+
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
@@ -97,6 +109,7 @@ const spawnResult = await spawnSubagentDirect({
   mode: 'run',
   cleanup: 'keep',
   sandbox: 'inherit',
+  expectsCompletionMessage: false,
 }, ctx);
 
 const childSessionKey = spawnResult?.childSessionKey || spawnResult?.sessionKey || spawnResult?.session?.key || spawnResult?.session?.sessionKey || '';
@@ -191,7 +204,7 @@ console.log(JSON.stringify({
 '''
 
     env = os.environ.copy()
-    env["OPENCLAW_LAYER1_PROMPT"] = prompt
+    env["OPENCLAW_LAYER1_PROMPT"] = _with_silent_completion_contract(prompt)
     if REQUESTER_SESSION_KEY:
         env["OPENCLAW_LAYER1_REQUESTER_SESSION_KEY"] = REQUESTER_SESSION_KEY
     env["OPENCLAW_LAYER1_WRITE_RUNTIME_TIMEOUT_MS"] = str(WAIT_TIMEOUT_MS)
