@@ -65,15 +65,15 @@
 并使用入口：
 - `Core/Layer2_Preserve/ENTRY_LAYER2_restore.py`
 
-### 中危风险：`harness == openclaw` 时会清理 memory worker 的 sessions
-当 `harness == openclaw` 时，Layer1 / Layer3 任务开始前会先对 memory worker agent 的 `agent/{memory_worker_agentId}/sessions/` 做清理。这是为了防止任务型 LLM 调用记录无限累积。
+### 中危风险：`memory_worker_harness == openclaw` 时会清理 memory worker 的 sessions
+当 `memory_worker_harness == openclaw` 时，Layer1 / Layer3 任务开始前会先对 memory worker agent 的 `agent/{memory_worker_agentId}/sessions/` 做清理。这是为了防止任务型 LLM 调用记录无限累积。
 
 这一默认行为成立的前提是：memory worker agent 被设计成后台一次性调用、用后即焚，因此它必须是独立的、非生产级 agent，而且不能被安排任何其他任务。这也是文档中一再强调必须为 memory worker 单独准备专用 agent 的原因。
 
 如果您严格遵守了这一限制条件，则通常无需担心，也无需采取任何行动。反之，如果您把生产 agent 错用为 memory worker，就存在整个对话丢失的风险。
 
 ### 高危风险：可选启用生产 agent 原始 sessions 文件衰减
-当 `harness == openclaw` 时，系统还提供一项默认关闭的高级功能：将每个生产 agent 已自动归档的原始会话文件，从 `agent/{agentId}/sessions/` 中进一步清除。它的目的，是从项目外部协助控制 OpenClaw 会话内存的无限膨胀。
+当某个 `production_agents[*].harness == openclaw` 时，系统还提供一项默认关闭的高级功能：将每个 OpenClaw 生产 agent 已自动归档的原始会话文件，从 `agent/{agentId}/sessions/` 中进一步清除。它的目的，是从项目外部协助控制 OpenClaw 会话内存的无限膨胀。
 
 启用方式：
 - 打开 `{code_dir}/Adapters/openclaw/OpenclawConfig.json`
@@ -163,9 +163,9 @@ cp Adapters/openclaw/OpenclawConfig-template.json Adapters/openclaw/OpenclawConf
 
 安装前至少应明确填写：
 
-- `harness`
 - `memory_worker_agentId`
-- `agentId_list`
+- `memory_worker_harness`
+- `production_agents`
 - `code_dir`
 - `store_dir`
 - `archive_dir`
@@ -180,7 +180,7 @@ cp Adapters/openclaw/OpenclawConfig-template.json Adapters/openclaw/OpenclawConf
 python Installation/INSTALL.py
 ```
 
-如果 `harness == openclaw`，安装过程中还会执行 harness-specific prerequisites，并在需要时要求您：
+如果 `memory_worker_harness` 或某个 `production_agents[*].harness` 使用 `openclaw`，安装过程中还会执行 OpenClaw harness-specific prerequisites，并在需要时要求您：
 
 - 确认 OpenClaw 根目录
 - 补全 `key_template`

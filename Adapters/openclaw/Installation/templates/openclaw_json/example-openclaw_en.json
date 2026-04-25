@@ -1,6 +1,6 @@
 {
   "_note": "这是用于合并进 ~/.openclaw/openclaw.json 的示例片段。不要整文件覆盖你自己的 openclaw.json，只合并相关字段。",
-  "_warning": "memory worker agent 是专用内部 worker。不要把它加入 agentId_list，也不要把它当作普通生产级 agent 使用。",
+  "_warning": "memory worker agent 是专用内部 worker。不要把它加入 production_agents，也不要把它当作普通生产级 agent 使用。",
   "agents": {
     "list": [
       {
@@ -24,7 +24,7 @@
           ]
         }
       },
-      "for agentId in {{agentId_list}}: (script expands into per-agent tool patch objects)",
+      "for agentId in {{production_agent_ids}}: (script expands into per-agent tool patch objects)",
       {
         "id": "{{agentId}}",
         "_description": "对每个你已经在使用的 agent，不要替换整条 entry；只把下面这些工具名追加到 tools.allow[] 中。",

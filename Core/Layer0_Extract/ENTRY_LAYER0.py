@@ -14,11 +14,11 @@ if str(ROOT) not in sys.path:
 
 from Core.Layer0_Extract.preprocess import load_overall_config, compute_window, build_store_paths
 from Core.Layer0_Extract.postprocess import build_write_bundle
-from Core.harness_connector import get_required_connector_callable, load_harness_connector
+from Core.harness_connector import get_required_connector_callable, load_production_agent_connector
 
 
-def load_fetch_layer0_input(harness: str):
-    connector = load_harness_connector(repo_root=ROOT, harness=harness)
+def load_fetch_layer0_input(agent_id: str):
+    connector = load_production_agent_connector(repo_root=ROOT, agent_id=agent_id)
     return get_required_connector_callable(connector, 'production_agent', 'extract')
 
 
@@ -132,12 +132,11 @@ def main():
     args = parse_args()
     agent_id = args.agent
     overall_config = load_overall_config()
-    harness = overall_config.get('harness')
-    fetch_layer0_input = load_fetch_layer0_input(harness)
+    fetch_layer0_input = load_fetch_layer0_input(agent_id)
     store_paths = build_store_paths(agent_id, overall_config)
 
     memory_date_str = args.date
-    dbg(f'agent={agent_id}, memory_date={memory_date_str}, harness={harness}')
+    dbg(f'agent={agent_id}, memory_date={memory_date_str}')
 
     window_start, window_end = compute_window(memory_date_str, overall_config)
     raw = fetch_layer0_input(

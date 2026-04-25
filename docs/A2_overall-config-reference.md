@@ -59,20 +59,24 @@
 
 ## 安装前必须明确的字段
 
-### `harness`
-- 指定使用哪个 adapter harness。
-- 当前主要值为：
-  - `openclaw`
-
 ### `memory_worker_agentId`
 - 专用内部 memory worker 的 agent id。
-- 该值不能出现在 `agentId_list` 中。
+- 该值不能出现在 `production_agents[*].agentId` 中。
 - 这是一个专用内部 worker，不应与普通业务 agent 混用。
 
-### `agentId_list`
-- 普通业务 agent 列表。
-- 系统会用它来构建存储结构、session-watch 相关产物等。
-- 不应包含重复项。
+### `memory_worker_harness`
+- memory worker 使用的 adapter harness。
+- 当前主要值为：
+  - `openclaw`
+- `call_llm` 与 memory-worker runtime cleanup 会通过它路由。
+
+### `production_agents`
+- 生产级 agent 列表。
+- 每一项必须包含：
+  - `agentId`
+  - `harness`
+- 系统会用它来构建存储结构、session-watch 相关产物，并按 `harness` 分组执行 production-agent hook。
+- `agentId` 不应包含重复项。
 
 ### `code_dir`
 - 本地仓库根目录。
@@ -314,9 +318,9 @@
 ## 修改建议
 
 ### 建议安装前明确填写的字段
-- `harness`
 - `memory_worker_agentId`
-- `agentId_list`
+- `memory_worker_harness`
+- `production_agents`
 - `code_dir`
 - `store_dir`
 - `archive_dir`

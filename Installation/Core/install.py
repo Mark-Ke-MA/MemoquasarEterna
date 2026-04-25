@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from Core.shared_funcs import LoadConfig, output_success
+from Core.shared_funcs import LoadConfig, get_production_agent_ids, output_success
 
 
 def _repo_root_from_here() -> Path:
@@ -43,13 +43,7 @@ def _require_dict(data: dict[str, Any], key: str, *, where: str) -> dict[str, An
 
 
 def _require_list_of_agent_ids(cfg: dict[str, Any]) -> list[str]:
-    value = cfg.get('agentId_list')
-    if not isinstance(value, list) or not value:
-        raise KeyError('OverallConfig.json 缺少 agentId_list')
-    agent_ids = [str(x).strip() for x in value if str(x).strip()]
-    if not agent_ids:
-        raise KeyError('OverallConfig.json.agentId_list 为空')
-    return agent_ids
+    return get_production_agent_ids(cfg)
 
 
 def _cron_time_to_fields(value: str, *, where: str) -> tuple[str, str]:
@@ -266,7 +260,7 @@ def _upsert_cron_block(existing: str, *, marker: str, block: str) -> tuple[str, 
 
     base = existing.rstrip('\n')
     if base:
-        base += '\n\n'
+        base += '\n'
     base += block.rstrip('\n') + '\n'
     return base, 'created'
 

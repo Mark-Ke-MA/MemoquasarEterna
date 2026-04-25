@@ -30,10 +30,9 @@ if str(ROOT) not in sys.path:
 
 from Core.Layer1_Write.json_repair import load_json_with_repair
 from Core.Layer1_Write.shared import LoadConfig, load_json_file, write_json_atomic
-from Core.harness_connector import get_required_connector_callable, load_harness_connector
+from Core.harness_connector import get_required_connector_callable, load_memory_worker_connector
 
-HARNESS = LoadConfig(ROOT).overall_config.get('harness', 'openclaw')
-_connector = load_harness_connector(repo_root=ROOT, harness=HARNESS)
+_connector = load_memory_worker_connector(repo_root=ROOT)
 call_LLM = get_required_connector_callable(_connector, 'memory_worker', 'call_llm')
 
 

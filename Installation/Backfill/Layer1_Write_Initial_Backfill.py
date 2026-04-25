@@ -242,9 +242,10 @@ def main() -> None:
     args = parse_args()
     try:
         cfg = LoadConfig(ROOT).overall_config
-        all_agents = [str(agent_id).strip() for agent_id in (cfg.get('agentId_list', []) or []) if str(agent_id).strip()]
+        from Core.shared_funcs import get_production_agent_ids
+        all_agents = get_production_agent_ids(cfg)
         if not all_agents:
-            raise ValueError('OverallConfig.json 中 agentId_list 为空')
+            raise ValueError('OverallConfig.json 中 production_agents 为空')
 
         run_name = _default_run_name()
         result_write_path = _latest_result_file(cfg, run_name)

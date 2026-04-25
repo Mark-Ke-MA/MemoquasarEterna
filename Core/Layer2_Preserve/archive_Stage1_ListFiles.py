@@ -8,7 +8,8 @@ from typing import Any
 
 from Core.Layer2_Preserve.core import load_preserve_config, archive_tarball_path, preserve_result
 from Core.Layer2_Preserve.shared import parse_iso_date, iso_week_id, previous_iso_week_anchor, iso_week_window_from_anchor, utc_now_iso, store_surface_root, normalize_for_json
-from Core.harness_connector import call_optional_connector, load_harness_connector
+from Core.shared_funcs import parse_selected_production_agent_ids
+from Core.harness_connector import call_optional_production_agent_connectors
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,11 +78,10 @@ def _collect_candidate_files(surface_root: Path, window_start: str, window_end: 
 
 def run_archive_stage1(*, repo_root: str | None = None, week: str | None = None, agent: str | None = None, overwrite: bool = False, run_mode: str = 'manual', harness_only: bool = False, core_only: bool = False, dry_run: bool = False) -> dict[str, Any]:
     cfg = load_preserve_config(repo_root)
-    connector = load_harness_connector(repo_root=repo_root, harness=str(cfg.overall_config.get('harness', 'openclaw') or 'openclaw'))
-    call_optional_connector(
-        connector,
-        'production_agent',
-        'preserve',
+    selected_agents = parse_selected_production_agent_ids(cfg.overall_config, agent)
+    call_optional_production_agent_connectors(
+        repo_root=repo_root,
+        key='preserve',
         context={
             'repo_root': repo_root,
             'inputs': {
@@ -94,8 +94,8 @@ def run_archive_stage1(*, repo_root: str | None = None, week: str | None = None,
                 'dry_run': dry_run,
             },
         },
+        agent_ids=selected_agents,
     )
-    selected_agents = _parse_selected_agents(agent, list(cfg.overall_config.get('agentId_list', [])))
     week_id, window_start, window_end = _resolve_week_window(week)
 
     agent_plans: list[ArchiveAgentPlan] = []

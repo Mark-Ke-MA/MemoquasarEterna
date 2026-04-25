@@ -2,11 +2,17 @@
 """Layer0 预处理：只负责把目标日期翻译成标准时间窗口，并解析全局路径配置。"""
 import json
 import os
+import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
 CONFIG_PATH = Path(__file__).resolve().parents[2] / 'OverallConfig.json'
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from Core.shared_funcs import get_production_agents
 
 
 def load_overall_config() -> dict:
@@ -17,8 +23,7 @@ def load_overall_config() -> dict:
         data = json.load(f)
     if not isinstance(data, dict):
         raise ValueError(f'OverallConfig.json 格式错误: {CONFIG_PATH}')
-    if 'agentId_list' not in data:
-        raise KeyError('OverallConfig.json 缺少 agentId_list')
+    get_production_agents(data)
     if 'code_dir' not in data:
         raise KeyError('OverallConfig.json 缺少 code_dir')
     if 'store_dir' not in data:
@@ -102,4 +107,3 @@ def compute_window(target_date_str: str, config: dict | None = None):
     window_start = start_day.replace(hour=w['start_hour'], minute=w['start_minute'], second=0, microsecond=0).astimezone(timezone.utc)
     window_end = end_day.replace(hour=w['end_hour'], minute=w['end_minute'], second=0, microsecond=0).astimezone(timezone.utc)
     return window_start, window_end
-

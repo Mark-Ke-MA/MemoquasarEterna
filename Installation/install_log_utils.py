@@ -100,7 +100,12 @@ def build_install_snapshot(*, repo_root: str | Path, trigger: str, install_resul
         },
         'context': {
             'product_name': overall_config.get('product_name'),
-            'harness': overall_config.get('harness'),
+            'memory_worker_harness': overall_config.get('memory_worker_harness'),
+            'production_harnesses': sorted({
+                str(item.get('harness', '') or '').strip()
+                for item in overall_config.get('production_agents', [])
+                if isinstance(item, dict) and str(item.get('harness', '') or '').strip()
+            }),
             'repo_root': str(repo_root_path),
             'code_dir': str(repo_root_path),
         },
@@ -113,7 +118,8 @@ def build_install_snapshot(*, repo_root: str | Path, trigger: str, install_resul
             'store_dir': str(Path(str(overall_config.get('store_dir', '') or '')).expanduser().resolve()) if overall_config.get('store_dir') else '',
             'archive_dir': str(Path(str(overall_config.get('archive_dir', '') or '')).expanduser().resolve()) if overall_config.get('archive_dir') else '',
             'memory_worker_agentId': overall_config.get('memory_worker_agentId'),
-            'agentId_list': overall_config.get('agentId_list', []),
+            'memory_worker_harness': overall_config.get('memory_worker_harness'),
+            'production_agents': overall_config.get('production_agents', []),
             'layer1_auto_cron_marker': overall_config.get('layer1_auto_cron_marker'),
             'layer3_auto_cron_marker': overall_config.get('layer3_auto_cron_marker'),
             'daily_write_cron_time': overall_config.get('daily_write_cron_time'),

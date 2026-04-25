@@ -141,7 +141,8 @@ def run_stage1(*, repo_root: str | Path | None = None, agent: str | None = None)
     cfg = LoadConfig(repo_root)
     overall_config = cfg.overall_config
     decay_cfg = _layer3_decay_config(repo_root)
-    all_agent_ids = list(overall_config.get('agentId_list', []))
+    from Core.shared_funcs import get_production_agent_ids
+    all_agent_ids = get_production_agent_ids(overall_config)
     agent_ids = selected_agents(agent, all_agent_ids)
     if 'nprl_llm_max' not in overall_config:
         raise KeyError('OverallConfig.json 缺少 nprl_llm_max')

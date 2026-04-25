@@ -36,11 +36,8 @@ from Core.Layer1_Write.shared import (
     output_failure,
     write_json_atomic,
 )
-from Core.harness_connector import call_optional_connector, load_harness_connector
-
-
-HARNESS = LoadConfig(ROOT).overall_config.get('harness', 'openclaw')
-_CONNECTOR = load_harness_connector(repo_root=ROOT, harness=HARNESS)
+from Core.shared_funcs import get_production_agent_ids, parse_selected_production_agent_ids
+from Core.harness_connector import call_optional_memory_worker_connector
 
 
 # ---------------------------------------------------------------------------
@@ -100,7 +97,7 @@ def call_layer0_for_agents(*, agent_ids: list[str], target_date: str, repo_root:
 def call_layer0_for_all_agents(*, target_date: str, repo_root: str | None = None, dry_run: bool = False, stage1_staging_only: bool = False) -> list[dict[str, Any]]:
     """对配置里的所有 agent 逐个调用 Layer0。"""
     cfg = load_layer1_config(repo_root)
-    agent_ids = list(cfg.raw.get('agentId_list', []))
+    agent_ids = get_production_agent_ids(cfg.raw)
     return call_layer0_for_agents(agent_ids=agent_ids, target_date=target_date, repo_root=repo_root, dry_run=dry_run, stage1_staging_only=stage1_staging_only)
 
 
@@ -313,8 +310,9 @@ def _summarize_stage1_results(results: list[dict[str, Any]]) -> tuple[list[str],
 def run_stage1(*, target_date: str, repo_root: str | None = None, agent: str | None = None, dry_run: bool = False, stage1_staging_only: bool = False, show_plan: bool = False) -> dict:
     cfg = load_layer1_config(repo_root)
     all_cfg = _config_wrapper(repo_root).overall_config
-    all_agents = list(all_cfg.get('agentId_list', []))
-    selected_agents, agent_mode = _parse_selected_agents(agent, all_agents)
+    all_agents = get_production_agent_ids(all_cfg)
+    selected_agents = parse_selected_production_agent_ids(all_cfg, agent)
+    agent_mode = 'all' if len(selected_agents) == len(all_agents) and selected_agents == all_agents else ('single' if len(selected_agents) == 1 else 'multiple')
 
     if dry_run or show_plan:
         commands = [build_stage1_call_layer0_command(agent_id=a, target_date=target_date, repo_root=repo_root, stage1_staging_only=stage1_staging_only) for a in selected_agents]
@@ -336,10 +334,9 @@ def run_stage1(*, target_date: str, repo_root: str | None = None, agent: str | N
 
     maintenance_result = None
     try:
-        maintenance_result = call_optional_connector(
-            _CONNECTOR,
-            'memory_worker',
-            'clean_runtime',
+        maintenance_result = call_optional_memory_worker_connector(
+            repo_root=repo_root,
+            key='clean_runtime',
             context={
                 'repo_root': repo_root,
                 'inputs': {

@@ -11,7 +11,7 @@
 
 支持三种模式：
 - --agent <id>：初始化单个 agent
-- --all：初始化 OverallConfig.json 里的全部 agentId_list
+- --all：初始化 OverallConfig.json 里的全部 production_agents
 - --generate-daily-init-cron：仅安装/校验 daily init cron，不碰 plist/registry
 
 它和 `Sessions_Watch/Mechanisms/sessions_watch_runtime.py` 是并列入口，不互相调用。
@@ -39,6 +39,7 @@ from Adapters.openclaw.Sessions_Watch.Mechanisms.sessions_watch_funcs import (
     load_known_sessions,
     save_known_sessions,
 )
+from Adapters.openclaw.Installation.shared import production_agent_ids
 
 
 def _repo_root_from_here() -> Path:
@@ -328,7 +329,7 @@ def _install_one_agent(agent_id: str, *, repo_root: Path, label_suffix: str | in
 
 def _install_all_agents(*, repo_root: Path, label_suffix: str | int) -> dict:
     cfg = _cfg(repo_root)
-    agent_ids = cfg.overall_config["agentId_list"]
+    agent_ids = production_agent_ids(cfg)
     install_results = []
     runtime_results = []
     for agent_id in agent_ids:
@@ -353,7 +354,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="OpenClaw sessions-watch initialization entry")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--agent", help="agent id")
-    group.add_argument("--all", action="store_true", help="初始化 OverallConfig.json 里的全部 agentId_list")
+    group.add_argument("--all", action="store_true", help="初始化 OverallConfig.json 里的全部 production_agents")
     group.add_argument("--generate-daily-init-cron", action="store_true", help="仅生成/校验 daily init cron，不碰 plist/registry")
     parser.add_argument("--dry-run", action="store_true", help="只输出计划，不写文件")
     parser.add_argument("--write", action="store_true", help="写入初始化产物")

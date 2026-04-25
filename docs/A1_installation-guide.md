@@ -14,7 +14,7 @@
 cd {code_dir}
 python Installation/INSTALL.py
 ```
-4. 如果 `harness == openclaw`：
+4. 如果 `memory_worker_harness` 或某个 `production_agents[*].harness` 为 `openclaw`：
    - 根据交互提示补全 prerequisites 所需信息
    - 将 `Installation/example-openclaw.json` merge 到你的 OpenClaw 配置中
    - 重启 OpenClaw gateway
@@ -35,9 +35,9 @@ python Installation/INSTALL.py
 
 ## 安装前必须明确填写的字段
 至少应填写：
-- `harness`
 - `memory_worker_agentId`
-- `agentId_list`
+- `memory_worker_harness`
+- `production_agents`
 - `code_dir`
 - `store_dir`
 - `archive_dir`
@@ -88,7 +88,7 @@ python Installation/INSTALL.py
 ### Core prerequisites
 至少检查：
 - `OverallConfig.json` 基础合法性
-- `memory_worker_agentId` 不出现在 `agentId_list`
+- `memory_worker_agentId` 不出现在 `production_agents`
 - cron 时间格式
 - `code_dir` 与真实仓库路径是否一致
 - Python / `crontab` 是否可用
@@ -101,7 +101,7 @@ python Installation/INSTALL.py
 - 安装 Layer1 / Layer3 auto cron
 
 ## OpenClaw 额外步骤
-当 `harness == openclaw` 时：
+当 `memory_worker_harness` 或某个 `production_agents[*].harness` 为 `openclaw` 时：
 
 ### 1. OpenClaw 根目录检查
 默认检查：

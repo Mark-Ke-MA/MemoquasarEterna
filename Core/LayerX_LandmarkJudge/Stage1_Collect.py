@@ -45,7 +45,8 @@ def run_stage1(*, repo_root: str | Path | None = None, agent: str | None = None,
 
     cfg = LoadConfig(repo_root)
     overall_config = cfg.overall_config
-    agent_ids = selected_agents(agent, list(overall_config.get('agentId_list', [])))
+    from Core.shared_funcs import get_production_agent_ids
+    agent_ids = selected_agents(agent, get_production_agent_ids(overall_config))
 
     items: list[dict[str, Any]] = []
     for agent_id in agent_ids:

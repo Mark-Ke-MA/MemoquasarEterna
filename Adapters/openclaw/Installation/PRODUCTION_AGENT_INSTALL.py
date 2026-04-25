@@ -12,7 +12,7 @@ from Adapters.openclaw.Installation.shared import (
     plugin_id_from_product_name,
     plugin_install_root,
     repo_root_from_here,
-    require_openclaw_harness,
+    production_agent_ids,
     shell_step,
     summarize_step_result,
     python_step,
@@ -33,12 +33,10 @@ def _summarize_shell_step_result(result: dict[str, Any], *, plugin_id: str) -> d
     return summary
 
 
-def run_install(*, repo_root: str | Path | None = None, dry_run: bool = False) -> dict[str, Any]:
+def run_install(*, repo_root: str | Path | None = None, dry_run: bool = False, agent_ids: list[str] | None = None) -> dict[str, Any]:
     repo_root_path = Path(repo_root) if repo_root is not None else repo_root_from_here()
     config = cfg(repo_root_path)
-    preflight = require_openclaw_harness(config, action='production agent install')
-    if preflight is not None:
-        return {**preflight, 'steps': []}
+    agent_ids = production_agent_ids(config, agent_ids=agent_ids)
 
     product_name = str(config.overall_config.get('product_name', '') or '').strip()
     plugin_id = plugin_id_from_product_name(product_name)
@@ -49,7 +47,7 @@ def run_install(*, repo_root: str | Path | None = None, dry_run: bool = False) -
     warnings: list[str] = []
 
     try:
-        render_result = update_example_openclaw_json(repo_root=repo_root_path, scope='production_agent', action='upsert', dry_run=dry_run)
+        render_result = update_example_openclaw_json(repo_root=repo_root_path, scope='production_agent', action='upsert', dry_run=dry_run, agent_ids=agent_ids)
     except Exception as exc:
         render_result = {'success': False, 'status': 'failed', 'message': str(exc)}
     steps.append({
@@ -79,7 +77,11 @@ def run_install(*, repo_root: str | Path | None = None, dry_run: bool = False) -
             'note': 'dry-run: skipped shell execution',
         }
     else:
-        result = shell_step(read_install, repo_root=repo_root_path)
+        result = shell_step(
+            read_install,
+            repo_root=repo_root_path,
+            env={'MEMOQUASAR_PRODUCTION_AGENT_IDS_JSON': json.dumps(agent_ids, ensure_ascii=False)},
+        )
     steps.append({
         'name': 'install_read_plugin',
         'critical': True,
@@ -93,26 +95,53 @@ def run_install(*, repo_root: str | Path | None = None, dry_run: bool = False) -
             message='OpenClaw Read plugin 安装失败。',
         )
 
-    session_args = ['--all']
-    if not dry_run:
-        session_args.append('--write')
-    result = python_step(sessions_watch_initialize, args=session_args, repo_root=repo_root_path, dry_run=False)
-    session_success = result['returncode'] == 0
+    session_results = []
+    session_success = True
+    for agent_id in agent_ids:
+        session_args = ['--agent', agent_id]
+        if not dry_run:
+            session_args.append('--write')
+        result = python_step(sessions_watch_initialize, args=session_args, repo_root=repo_root_path, dry_run=False)
+        session_results.append(result)
+        if result['returncode'] != 0:
+            session_success = False
     steps.append({
         'name': 'initialize_sessions_watch',
         'critical': False,
         'success': session_success,
-        'summary': summarize_step_result(result),
+        'summary': {
+            'agent_count': len(agent_ids),
+            'results': [summarize_step_result(item) for item in session_results],
+        },
     })
     if not session_success:
         warnings.append(
             'Sessions Watch 初始化失败。安装主流程已继续，但产品当前仍不可正常使用；请在后续修复并重试该步骤。'
         )
 
-    session_parsed = result.get('parsed') if isinstance(result, dict) else None
+    cron_args = ['--generate-daily-init-cron']
+    if not dry_run:
+        cron_args.append('--write')
+    cron_result = python_step(sessions_watch_initialize, args=cron_args, repo_root=repo_root_path, dry_run=False)
+    cron_success = cron_result['returncode'] == 0
+    steps.append({
+        'name': 'install_sessions_watch_daily_init_cron',
+        'critical': False,
+        'success': cron_success,
+        'summary': summarize_step_result(cron_result),
+    })
+    if not cron_success:
+        warnings.append(
+            'Sessions Watch daily init cron 安装失败。安装主流程已继续；请后续修复并重试该步骤。'
+        )
+
     session_labels = []
-    if isinstance(session_parsed, dict) and isinstance(session_parsed.get('agents'), list):
-        session_labels = [str(item.get('label', '') or '').strip() for item in session_parsed['agents'] if isinstance(item, dict) and str(item.get('label', '') or '').strip()]
+    for result in session_results:
+        session_parsed = result.get('parsed') if isinstance(result, dict) else None
+        if isinstance(session_parsed, dict) and isinstance(session_parsed.get('agents'), list):
+            session_labels.extend(str(item.get('label', '') or '').strip() for item in session_parsed['agents'] if isinstance(item, dict) and str(item.get('label', '') or '').strip())
+        if isinstance(session_parsed, dict) and str(session_parsed.get('label', '') or '').strip():
+            session_labels.append(str(session_parsed.get('label', '') or '').strip())
 
     return {
         'success': True,
@@ -127,6 +156,7 @@ def run_install(*, repo_root: str | Path | None = None, dry_run: bool = False) -
             'sessions_watch': {
                 'daily_init_cron_marker': str(config.openclaw_config['maintenance']['daily_init_cron_marker']),
                 'labels': session_labels,
+                'agent_ids': agent_ids,
             },
         },
         'steps': steps,

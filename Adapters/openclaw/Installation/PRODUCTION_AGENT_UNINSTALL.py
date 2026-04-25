@@ -14,7 +14,6 @@ from Adapters.openclaw.Installation.shared import (
     python_step,
     remove_tree,
     repo_root_from_here,
-    require_openclaw_harness,
     summarize_step_result,
 )
 from Adapters.openclaw.Installation.templates.openclaw_json.render import DEFAULT_OUTPUT_PATH, update_example_openclaw_json
@@ -24,7 +23,32 @@ from Adapters.openclaw.openclaw_shared_funcs import output_success
 def _snapshot_resolved(snapshot: dict[str, Any] | None) -> dict[str, Any]:
     if not isinstance(snapshot, dict):
         return {}
-    return (snapshot.get('harness_production_agent_install') or {}).get('resolved_artifacts') or {}
+    raw = snapshot.get('harness_production_agent_install') or {}
+    if isinstance(raw.get('resolved_artifacts'), dict):
+        return raw.get('resolved_artifacts') or {}
+    if isinstance(raw.get('results'), list):
+        merged: dict[str, Any] = {}
+        labels: list[str] = []
+        agent_ids: list[str] = []
+        for item in raw['results']:
+            if not isinstance(item, dict):
+                continue
+            artifacts = item.get('resolved_artifacts')
+            if not isinstance(artifacts, dict):
+                continue
+            merged.update({key: value for key, value in artifacts.items() if key != 'sessions_watch'})
+            sessions_watch = artifacts.get('sessions_watch')
+            if isinstance(sessions_watch, dict):
+                labels.extend(str(x).strip() for x in sessions_watch.get('labels', []) if str(x).strip())
+                agent_ids.extend(str(x).strip() for x in sessions_watch.get('agent_ids', []) if str(x).strip())
+                if sessions_watch.get('daily_init_cron_marker'):
+                    merged.setdefault('sessions_watch', {})['daily_init_cron_marker'] = sessions_watch.get('daily_init_cron_marker')
+        if labels or agent_ids:
+            merged.setdefault('sessions_watch', {})
+            merged['sessions_watch']['labels'] = labels
+            merged['sessions_watch']['agent_ids'] = agent_ids
+        return merged
+    return {}
 
 
 def _crontab_list() -> str:
@@ -98,12 +122,9 @@ def _remove_cron_block_by_marker(marker: str, *, dry_run: bool) -> dict[str, Any
     return {'changed': True, 'status': 'would-remove' if dry_run else 'removed', 'removed_count': len(removed)}
 
 
-def run_uninstall(*, repo_root: str | Path | None = None, dry_run: bool = False, snapshot: dict[str, Any] | None = None) -> dict[str, Any]:
+def run_uninstall(*, repo_root: str | Path | None = None, dry_run: bool = False, snapshot: dict[str, Any] | None = None, agent_ids: list[str] | None = None) -> dict[str, Any]:
     repo_root_path = Path(repo_root) if repo_root is not None else repo_root_from_here()
     config = cfg(repo_root_path)
-    preflight = require_openclaw_harness(config, action='production agent uninstall')
-    if preflight is not None:
-        return {**preflight, 'steps': []}
 
     product_name = str(config.overall_config.get('product_name', '') or '').strip()
     if not product_name:
@@ -181,7 +202,7 @@ def run_uninstall(*, repo_root: str | Path | None = None, dry_run: bool = False,
     })
 
     try:
-        render_result = update_example_openclaw_json(repo_root=repo_root_path, scope='production_agent', action='remove', dry_run=dry_run)
+        render_result = update_example_openclaw_json(repo_root=repo_root_path, scope='production_agent', action='remove', dry_run=dry_run, agent_ids=agent_ids)
     except Exception as exc:
         render_result = {'success': False, 'status': 'failed', 'message': str(exc)}
     steps.append({

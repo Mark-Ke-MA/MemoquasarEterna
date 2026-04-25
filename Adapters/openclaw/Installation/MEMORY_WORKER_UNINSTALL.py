@@ -35,9 +35,7 @@ def _snapshot_has_openclaw_production_agent(snapshot: dict[str, Any] | None) -> 
             and str(item.get('harness', '') or '').strip() == 'openclaw'
             for item in production_agents
         )
-    legacy_agents = overall_cfg.get('agentId_list')
-    legacy_harness = str(((snapshot.get('context') or {}).get('harness') or overall_cfg.get('harness') or '')).strip()
-    return legacy_harness == 'openclaw' and isinstance(legacy_agents, list) and any(str(item).strip() for item in legacy_agents)
+    return False
 
 
 def run_uninstall(*, repo_root: str | Path | None = None, dry_run: bool = False, snapshot: dict[str, Any] | None = None) -> dict[str, Any]:

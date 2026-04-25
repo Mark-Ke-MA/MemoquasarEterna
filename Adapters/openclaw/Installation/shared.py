@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from Adapters.openclaw.openclaw_shared_funcs import LoadConfig
+from Core.shared_funcs import get_memory_worker_harness, get_production_agents
 
 
 DEFAULT_OPENCLAW_ROOT = '~/.openclaw'
@@ -23,15 +24,19 @@ def cfg(repo_root: str | Path | None = None) -> LoadConfig:
     return LoadConfig(Path(repo_root) if repo_root is not None else repo_root_from_here())
 
 
-def require_openclaw_harness(config: LoadConfig, *, action: str) -> dict[str, Any] | None:
-    if str(config.overall_config.get('harness', '') or '').strip() == 'openclaw':
+def require_openclaw_memory_worker_harness(config: LoadConfig, *, action: str) -> dict[str, Any] | None:
+    if get_memory_worker_harness(config.overall_config) == 'openclaw':
         return None
     return {
         'success': False,
         'status': 'failed',
         'failed_step': 'preflight',
-        'message': f'OverallConfig.json.harness 不是 openclaw，无法执行 OpenClaw {action}。',
+        'message': f'OverallConfig.json.memory_worker_harness 不是 openclaw，无法执行 OpenClaw {action}。',
     }
+
+
+def require_openclaw_harness(config: LoadConfig, *, action: str) -> dict[str, Any] | None:
+    return require_openclaw_memory_worker_harness(config, action=action)
 
 
 def load_openclaw_config_dict() -> dict[str, Any]:
@@ -114,13 +119,20 @@ def check_and_maybe_patch_openclaw_root(config_data: dict[str, Any], *, dry_run:
     }, warnings
 
 
-def production_agent_ids(config: LoadConfig) -> list[str]:
-    agent_ids = config.overall_config.get('agentId_list')
-    if not isinstance(agent_ids, list) or not agent_ids:
-        raise RuntimeError('OverallConfig.json.agentId_list 为空，无法验证 production agent 配置')
-    parsed = [str(item).strip() for item in agent_ids if str(item).strip()]
+def production_agent_ids(config: LoadConfig, agent_ids: list[str] | None = None) -> list[str]:
+    configured = get_production_agents(config.overall_config)
+    openclaw_agents = [item['agentId'] for item in configured if item['harness'] == 'openclaw']
+    if agent_ids is None:
+        parsed = openclaw_agents
+    else:
+        requested = [str(item).strip() for item in agent_ids if str(item).strip()]
+        openclaw_set = set(openclaw_agents)
+        invalid = [item for item in requested if item not in openclaw_set]
+        if invalid:
+            raise RuntimeError(f'以下 production agent 不属于 openclaw harness: {", ".join(invalid)}')
+        parsed = requested
     if not parsed:
-        raise RuntimeError('OverallConfig.json.agentId_list 解析后为空，无法验证 production agent 配置')
+        raise RuntimeError('OverallConfig.json.production_agents 中没有 openclaw production agent，无法验证 production agent 配置')
     return parsed
 
 
@@ -320,9 +332,12 @@ def check_and_maybe_fill_registry_maintenance(config_data: dict[str, Any], *, re
     )
 
 
-def shell_step(script_path: Path, *, repo_root: Path) -> dict[str, Any]:
+def shell_step(script_path: Path, *, repo_root: Path, env: dict[str, str] | None = None) -> dict[str, Any]:
     cmd = ['bash', str(script_path)]
-    proc = subprocess.run(cmd, capture_output=True, text=True, cwd=str(repo_root))
+    proc_env = os.environ.copy()
+    if env:
+        proc_env.update(env)
+    proc = subprocess.run(cmd, capture_output=True, text=True, cwd=str(repo_root), env=proc_env)
     return {
         'cmd': cmd,
         'returncode': proc.returncode,

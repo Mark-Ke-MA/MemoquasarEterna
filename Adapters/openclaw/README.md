@@ -382,9 +382,9 @@ OpenClaw plugin tool
 
 当前主要提供：
 
-- `harness`
-- `agentId_list`
 - `memory_worker_agentId`
+- `memory_worker_harness`
+- `production_agents`
 - `code_dir`
 - `store_dir`
 - `timezone`

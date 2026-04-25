@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from Core.shared_funcs import LoadConfig, output_success, write_json_atomic
+from Core.shared_funcs import LoadConfig, get_memory_worker_harness, get_production_agents, output_success, write_json_atomic
 
 
 def _repo_root_from_here() -> Path:
@@ -168,12 +168,19 @@ def _maybe_fix_code_dir(cfg: dict[str, Any], *, repo_root: Path, dry_run: bool, 
 
 def _check_config(cfg: dict[str, Any], *, repo_root: Path, dry_run: bool, checks: dict[str, Any], errors: list[str], warnings: list[str]) -> dict[str, Any]:
     product_name = _require_str(cfg, 'product_name', where='OverallConfig.json', errors=errors)
-    harness = _require_str(cfg, 'harness', where='OverallConfig.json', errors=errors)
     memory_worker_agent_id = _require_str(cfg, 'memory_worker_agentId', where='OverallConfig.json', errors=errors)
-    agent_ids_raw = _require_list(cfg, 'agentId_list', where='OverallConfig.json', errors=errors)
-    agent_ids = [str(x).strip() for x in agent_ids_raw if str(x).strip()]
-    if not agent_ids:
-        errors.append('OverallConfig.json.agentId_list 解析后为空')
+    try:
+        memory_worker_harness = get_memory_worker_harness(cfg)
+    except Exception as exc:
+        errors.append(str(exc))
+        memory_worker_harness = ''
+    try:
+        production_agents = get_production_agents(cfg)
+    except Exception as exc:
+        errors.append(str(exc))
+        production_agents = []
+    agent_ids = [item['agentId'] for item in production_agents]
+    production_harnesses = sorted({item['harness'] for item in production_agents})
 
     code_dir = _require_str(cfg, 'code_dir', where='OverallConfig.json', errors=errors)
     store_dir = _require_str(cfg, 'store_dir', where='OverallConfig.json', errors=errors)
@@ -190,10 +197,7 @@ def _check_config(cfg: dict[str, Any], *, repo_root: Path, dry_run: bool, checks
     _check_weekday(weekly_decay_cron_day, where='OverallConfig.json.weekly_decay_cron_day', errors=errors)
 
     if memory_worker_agent_id and memory_worker_agent_id in agent_ids:
-        errors.append('OverallConfig.json.memory_worker_agentId 不允许出现在 agentId_list 中')
-
-    if len(agent_ids) != len(set(agent_ids)):
-        errors.append('OverallConfig.json.agentId_list 中存在重复项')
+        errors.append('OverallConfig.json.memory_worker_agentId 不允许出现在 production_agents 中')
 
     cfg, code_dir_initial, code_dir_effective, code_dir_auto_fixed = _maybe_fix_code_dir(
         cfg,
@@ -217,7 +221,8 @@ def _check_config(cfg: dict[str, Any], *, repo_root: Path, dry_run: bool, checks
     checks['config'] = {
         'status': 'ok',
         'product_name': product_name,
-        'harness': harness,
+        'memory_worker_harness': memory_worker_harness,
+        'production_harnesses': production_harnesses,
         'timezone': timezone,
         'agent_count': len(agent_ids),
         'memory_worker_agentId': memory_worker_agent_id,

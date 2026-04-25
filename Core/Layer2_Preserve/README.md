@@ -41,8 +41,7 @@ Layer2 读取 `OverallConfig.json` 中与以下内容相关的字段：
 - `archive_dir_structure`
 - `store_dir`
 - `store_dir_structure`
-- `agentId_list`
-- `harness`
+- `production_agents`
 
 ### 3. Harness connector
 

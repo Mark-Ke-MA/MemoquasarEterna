@@ -10,7 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from Core.harness_connector import get_required_connector_callable, load_harness_connector
+from Core.harness_connector import get_required_connector_callable, load_harness_connector, production_agents_by_harness
+from Core.shared_funcs import LoadConfig, get_memory_worker_harness
 from Installation.Core.uninstall import run_uninstall as run_core_uninstall
 from Installation.install_log_utils import load_latest_snapshot
 
@@ -64,6 +65,26 @@ def _critical_failure_payload(*, step_results: list[dict[str, Any]], failed_step
         'failed_step': failed_step,
         'message': message,
         'steps': step_results,
+    }
+
+
+def _combined_result(results: list[dict[str, Any]], *, dry_run: bool) -> dict[str, Any]:
+    warnings: list[str] = []
+    errors: list[str] = []
+    for result in results:
+        if isinstance(result.get('warnings'), list):
+            warnings.extend(str(x) for x in result['warnings'] if str(x).strip())
+        if not bool(result.get('success', False)):
+            message = str(result.get('message', '') or '').strip()
+            if message:
+                errors.append(message)
+    return {
+        'success': not errors,
+        'status': 'success_with_warnings' if warnings and not errors else ('success' if not errors else 'failed'),
+        'dry_run': dry_run,
+        'warnings': warnings,
+        'errors': errors,
+        'results': results,
     }
 
 
@@ -156,13 +177,12 @@ def run_uninstall(*, repo_root: str | Path | None = None, dry_run: bool = False,
     snapshot_path = None
     if snapshot is None and use_latest_snapshot:
         snapshot, snapshot_path = load_latest_snapshot(repo_root_path)
-    snapshot_harness = ''
-    if isinstance(snapshot, dict):
-        snapshot_harness = str(((snapshot.get('context') or {}).get('harness') or '')).strip()
-    connector = load_harness_connector(repo_root=repo_root_path, harness=snapshot_harness or None)
-    connector_where = f'connector({repo_root_path}, harness={snapshot_harness or "current"})'
-    harness_mw_uninstall = get_required_connector_callable(connector, 'memory_worker', 'uninstall', where=connector_where)
-    harness_pa_uninstall = get_required_connector_callable(connector, 'production_agent', 'uninstall', where=connector_where)
+    overall_config = LoadConfig(repo_root_path).overall_config
+    memory_worker_harness = get_memory_worker_harness(overall_config)
+    production_groups = production_agents_by_harness(repo_root_path)
+    mw_connector = load_harness_connector(repo_root=repo_root_path, harness=memory_worker_harness)
+    mw_where = f'connector({repo_root_path}, harness={memory_worker_harness})'
+    harness_mw_uninstall = get_required_connector_callable(mw_connector, 'memory_worker', 'uninstall', where=mw_where)
 
     steps: list[dict[str, Any]] = []
 
@@ -184,7 +204,16 @@ def run_uninstall(*, repo_root: str | Path | None = None, dry_run: bool = False,
             message='Harness memory worker uninstall 失败。',
         )
 
-    harness_pa_uninstall_result = harness_pa_uninstall(repo_root=repo_root_path, dry_run=dry_run, snapshot=snapshot)
+    harness_pa_uninstall_results: list[dict[str, Any]] = []
+    for harness, agent_ids in production_groups.items():
+        connector = load_harness_connector(repo_root=repo_root_path, harness=harness)
+        connector_where = f'connector({repo_root_path}, harness={harness})'
+        harness_pa_uninstall = get_required_connector_callable(connector, 'production_agent', 'uninstall', where=connector_where)
+        result = harness_pa_uninstall(repo_root=repo_root_path, dry_run=dry_run, snapshot=snapshot, agent_ids=agent_ids)
+        result.setdefault('harness', harness)
+        result.setdefault('agent_ids', agent_ids)
+        harness_pa_uninstall_results.append(result)
+    harness_pa_uninstall_result = _combined_result(harness_pa_uninstall_results, dry_run=dry_run)
     steps.append(_step_payload(name='harness_production_agent_uninstall', critical=True, result=harness_pa_uninstall_result))
     if not bool(harness_pa_uninstall_result.get('success', False)):
         return _critical_failure_payload(
@@ -206,7 +235,8 @@ def run_uninstall(*, repo_root: str | Path | None = None, dry_run: bool = False,
         'steps': steps,
         'snapshot_used': snapshot is not None,
         'snapshot_path': str(snapshot_path) if snapshot_path is not None else None,
-        'snapshot_harness': snapshot_harness or None,
+        'memory_worker_harness': memory_worker_harness,
+        'production_harnesses': sorted(production_groups.keys()),
     }
 
 

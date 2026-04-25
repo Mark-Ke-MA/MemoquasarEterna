@@ -59,7 +59,7 @@ def ensure_config_file(repo_root: str | Path, spec: ConfigSpec, *, dry_run: bool
 
     template_data = _load_json(template_path, label=str(spec.template_relpath))
     template_schema = _schema_version(template_data, label=str(spec.template_relpath))
-    template_harness = str(template_data.get('harness', '') or '').strip() if spec.key == 'overall' else ''
+    template_harness = str(template_data.get('memory_worker_harness', '') or '').strip() if spec.key == 'overall' else ''
 
     if not config_path.exists():
         if dry_run:
@@ -87,7 +87,7 @@ def ensure_config_file(repo_root: str | Path, spec: ConfigSpec, *, dry_run: bool
 
     config_data = _load_json(config_path, label=str(spec.config_relpath))
     config_schema = _schema_version(config_data, label=str(spec.config_relpath))
-    config_harness = str(config_data.get('harness', '') or '').strip() if spec.key == 'overall' else ''
+    config_harness = str(config_data.get('memory_worker_harness', '') or '').strip() if spec.key == 'overall' else ''
     if config_schema != template_schema:
         return {
             'success': False,

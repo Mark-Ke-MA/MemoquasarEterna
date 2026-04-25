@@ -61,7 +61,7 @@ python Maintenance/LayerX_Scores_Rerun.py --date_start 2026-04-01 --date_end 202
 规则：
 - 支持逗号分隔多个 agent
 - 原样透传给 `ENTRY_LAYER1.py --agent`
-- 如果不传，则会自动读取 `OverallConfig.agentId_list`
+- 如果不传，则会自动读取 `OverallConfig.production_agents`
 
 ### `--repo-root <path>`
 指定仓库根目录。默认是当前脚本自动推断出来的 repo root。

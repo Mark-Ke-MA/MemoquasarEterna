@@ -13,7 +13,8 @@ from Core.Layer2_Preserve.archive_Stage1_ListFiles import run_archive_stage1
 from Core.Layer2_Preserve.archive_Stage2_Archive import run_archive_stage2
 from Core.Layer2_Preserve.archive_Stage3_Finalize import run_archive_stage3
 from Core.shared_funcs import output_success, output_failure
-from Core.harness_connector import call_optional_connector, load_harness_connector
+from Core.shared_funcs import LoadConfig, parse_selected_production_agent_ids
+from Core.harness_connector import call_optional_production_agent_connectors
 
 
 def parse_args():
@@ -32,11 +33,11 @@ def parse_args():
 
 
 def _run_harness_only(args):
-    connector = load_harness_connector(repo_root=args.repo_root)
-    result = call_optional_connector(
-        connector,
-        'production_agent',
-        'preserve',
+    overall_config = LoadConfig(args.repo_root).overall_config
+    selected_agents = parse_selected_production_agent_ids(overall_config, args.agent)
+    results = call_optional_production_agent_connectors(
+        repo_root=args.repo_root,
+        key='preserve',
         context={
             'repo_root': args.repo_root,
             'inputs': {
@@ -49,13 +50,14 @@ def _run_harness_only(args):
                 'dry_run': args.dry_run,
             },
         },
+        agent_ids=selected_agents,
     )
     return {
         'success': True,
         'stage': 'Layer2_Archive_HarnessOnly',
         'run_mode': args.run_mode,
         'harness_only': True,
-        'results': [] if result is None else [result],
+        'results': results,
     }
 
 

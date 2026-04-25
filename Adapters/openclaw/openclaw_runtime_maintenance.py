@@ -12,6 +12,8 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
+
+from Core.shared_funcs import get_production_agent_ids
 from typing import Any
 
 
@@ -37,7 +39,7 @@ def _validate_memory_worker_agent_id(memory_worker_agent_id: str, agent_id_list:
     if '/' in memory_worker_agent_id or '\\' in memory_worker_agent_id:
         raise ValueError('memory_worker_agentId 不能包含路径分隔符')
     if memory_worker_agent_id in agent_id_list:
-        raise ValueError('memory_worker_agentId 必须是独立的非日常 agent，不能出现在 agentId_list 中')
+        raise ValueError('memory_worker_agentId 必须是独立的非日常 agent，不能出现在 production_agents 中')
 
 
 def _resolve_memory_worker_sessions_dir() -> Path:
@@ -45,7 +47,7 @@ def _resolve_memory_worker_sessions_dir() -> Path:
     openclaw_cfg = _load_json_dict(OPENCLAW_CONFIG_PATH)
 
     memory_worker_agent_id = str(overall_cfg.get('memory_worker_agentId', '') or '').strip()
-    agent_id_list = [str(agent_id).strip() for agent_id in (overall_cfg.get('agentId_list', []) or []) if str(agent_id).strip()]
+    agent_id_list = get_production_agent_ids(overall_cfg)
     _validate_memory_worker_agent_id(memory_worker_agent_id, agent_id_list)
 
     sessions_path_template = str(openclaw_cfg.get('sessions_path', '') or '').strip()

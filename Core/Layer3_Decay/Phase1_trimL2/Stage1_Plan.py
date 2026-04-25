@@ -119,7 +119,8 @@ def _build_candidate_item(agent_id: str, l2_path: Path) -> tuple[str, TrimL2Plan
 def run_stage1(*, repo_root: str | Path | None = None, week: str | None = None, source_week: str | None = None, agent: str | None = None) -> dict[str, Any]:
     cfg = LoadConfig(repo_root)
     overall_config = cfg.overall_config
-    agent_ids = selected_agents(agent, list(overall_config.get('agentId_list', [])))
+    from Core.shared_funcs import get_production_agent_ids
+    agent_ids = selected_agents(agent, get_production_agent_ids(overall_config))
     if week and source_week:
         raise ValueError('--week 与 --source-week 不能同时使用')
     if source_week:

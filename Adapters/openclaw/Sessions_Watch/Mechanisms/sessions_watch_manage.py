@@ -26,6 +26,7 @@ if str(ROOT) not in sys.path:
 
 from Adapters.openclaw.openclaw_shared_funcs import LoadConfig, dbg, output_failure
 from Adapters.openclaw.Sessions_Watch.Mechanisms.sessions_watch_funcs import build_openclaw_paths, build_session_watch_plist, build_session_watch_label, split_session_watch_label
+from Adapters.openclaw.Installation.shared import production_agent_ids
 
 
 def _repo_root_from_here() -> Path:
@@ -228,7 +229,7 @@ def delete_plist(label: str, *, repo_root: str | Path | None = None, dry_run: bo
 
 def delete_all_plists(*, repo_root: str | Path | None = None, label_suffix: str | int | None = None, dry_run: bool = False, remove_daily_init_cron: bool = False) -> dict:
     cfg = _cfg(repo_root)
-    agent_ids = cfg.overall_config['agentId_list']
+    agent_ids = production_agent_ids(cfg)
     label_prefix = cfg.openclaw_config['maintenance']['plist_label_prefix']
     labels = [build_session_watch_label(agent_id, suffix=label_suffix, label_prefix=label_prefix, repo_root=repo_root) for agent_id in agent_ids]
 

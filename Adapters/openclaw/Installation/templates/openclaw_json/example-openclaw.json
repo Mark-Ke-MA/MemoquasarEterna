@@ -24,7 +24,7 @@
           ]
         }
       },
-      "for agentId in {{agentId_list}}: (script expands into per-agent tool patch objects)",
+      "for agentId in {{production_agent_ids}}: (script expands into per-agent tool patch objects)",
       {
         "id": "{{agentId}}",
         "_description": "对每个你已经在使用的 agent，不要替换整条 entry；只把下面这些工具名追加到 tools.allow[] 中。",

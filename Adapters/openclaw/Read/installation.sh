@@ -13,15 +13,33 @@ if [[ ! -f "${OVERALL_CONFIG_PATH}" ]]; then
 fi
 
 CONFIG_JSON="$(${PYTHON_BIN} - <<'PY' "${OVERALL_CONFIG_PATH}"
-import json, sys
+import json, os, sys
 from pathlib import Path
 cfg = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
 product_name = cfg.get('product_name')
 if not isinstance(product_name, str) or not product_name.strip():
     raise SystemExit('ERROR: OverallConfig.json.product_name is missing or invalid')
-agent_ids = cfg.get('agentId_list')
-if not isinstance(agent_ids, list) or not all(isinstance(x, str) and x.strip() for x in agent_ids):
-    raise SystemExit('ERROR: OverallConfig.json.agentId_list is missing or invalid')
+agent_ids_override = os.environ.get('MEMOQUASAR_PRODUCTION_AGENT_IDS_JSON', '').strip()
+if agent_ids_override:
+    agent_ids = json.loads(agent_ids_override)
+    if not isinstance(agent_ids, list) or not all(isinstance(x, str) and x.strip() for x in agent_ids):
+        raise SystemExit('ERROR: MEMOQUASAR_PRODUCTION_AGENT_IDS_JSON is invalid')
+else:
+    production_agents = cfg.get('production_agents')
+    if not isinstance(production_agents, list) or not production_agents:
+        raise SystemExit('ERROR: OverallConfig.json.production_agents is missing or invalid')
+    agent_ids = []
+    for item in production_agents:
+        if not isinstance(item, dict):
+            raise SystemExit('ERROR: OverallConfig.json.production_agents entries must be objects')
+        if str(item.get('harness') or '').strip() != 'openclaw':
+            continue
+        agent_id = str(item.get('agentId') or '').strip()
+        if not agent_id:
+            raise SystemExit('ERROR: OverallConfig.json.production_agents entry is missing agentId')
+        agent_ids.append(agent_id)
+    if not agent_ids:
+        raise SystemExit('ERROR: OverallConfig.json.production_agents contains no openclaw agents')
 plugin_name = product_name.strip()
 plugin_id = ''.join(ch.lower() if ch.isalnum() else '_' for ch in plugin_name).strip('_') or 'clean_memory_read'
 print(json.dumps({

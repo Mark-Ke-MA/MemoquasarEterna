@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from ...openclaw_shared_funcs import LoadConfig, SessionFinder, dbg
+from Core.shared_funcs import get_production_agents
 
 
 STAGE_NAME = 'OpenClaw_Sessions_Watch_Decay'
@@ -83,8 +84,8 @@ def _openclaw_paths(cfg: LoadConfig, agent_id: str) -> dict[str, Path]:
     }
 
 
-def _selected_agents(cfg: LoadConfig, raw_agent: str | None) -> list[str]:
-    all_agents = list(cfg.overall_config.get('agentId_list', []))
+def _selected_agents(cfg: LoadConfig, raw_agent: str | None, routed_agent_ids: list[str] | None = None) -> list[str]:
+    all_agents = [str(item).strip() for item in routed_agent_ids if str(item).strip()] if routed_agent_ids is not None else [item['agentId'] for item in get_production_agents(cfg.overall_config) if item['harness'] == 'openclaw']
     if raw_agent is None or not str(raw_agent).strip():
         return all_agents
     selected: list[str] = []
@@ -267,6 +268,7 @@ def entry(context: dict):
     week = inputs.get('week')
     agent = inputs.get('agent') or inputs.get('agent_id')
     dry_run = bool(inputs.get('dry_run', False))
+    routed_agent_ids = inputs.get('agent_ids') if isinstance(inputs.get('agent_ids'), list) else None
 
     decay_cfg = _decay_config(cfg)
     decay_week_interval = int(decay_cfg['decay_week_interval'])
@@ -278,7 +280,7 @@ def entry(context: dict):
         }
 
     try:
-        target_agents = _selected_agents(cfg, agent)
+        target_agents = _selected_agents(cfg, agent, routed_agent_ids=routed_agent_ids)
     except Exception as exc:
         return {
             'success': False,

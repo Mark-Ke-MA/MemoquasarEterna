@@ -32,7 +32,7 @@ def iter_dates(date_start: str, date_end: str):
 
 def parse_args():
     parser = argparse.ArgumentParser(description='批量重跑 LayerX landmark score records')
-    parser.add_argument('--agent', default=None, help='原样透传给 Layer1 ENTRY 的 --agent；不传则读取 OverallConfig.agentId_list')
+    parser.add_argument('--agent', default=None, help='原样透传给 Layer1 ENTRY 的 --agent；不传则读取 OverallConfig.production_agents')
     parser.add_argument('--date', default=None, help='单日 YYYY-MM-DD')
     parser.add_argument('--date_start', default=None, help='起始日期 YYYY-MM-DD')
     parser.add_argument('--date_end', default=None, help='结束日期 YYYY-MM-DD')
@@ -73,12 +73,10 @@ def resolve_agent_arg(*, repo_root: str, agent: str | None) -> str:
     if agent is not None and str(agent).strip():
         return str(agent).strip()
     cfg = LoadConfig(repo_root).overall_config
-    agent_ids = cfg.get('agentId_list', []) if isinstance(cfg, dict) else []
-    if not isinstance(agent_ids, list) or not agent_ids:
-        raise ValueError('OverallConfig.agentId_list 为空，且未显式提供 --agent')
-    parsed = [str(item).strip() for item in agent_ids if str(item).strip()]
+    from Core.shared_funcs import get_production_agent_ids
+    parsed = get_production_agent_ids(cfg)
     if not parsed:
-        raise ValueError('OverallConfig.agentId_list 解析后为空，且未显式提供 --agent')
+        raise ValueError('OverallConfig.production_agents 为空，且未显式提供 --agent')
     return ','.join(parsed)
 
 

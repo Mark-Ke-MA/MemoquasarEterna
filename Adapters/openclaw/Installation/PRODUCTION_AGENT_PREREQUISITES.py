@@ -13,23 +13,19 @@ from Adapters.openclaw.Installation.shared import (
     load_openclaw_config_dict,
     production_agent_ids,
     repo_root_from_here,
-    require_openclaw_harness,
     write_openclaw_config_dict,
 )
 from Adapters.openclaw.openclaw_shared_funcs import output_success
 
 
-def run_prerequisites(*, repo_root: str | Path | None = None, dry_run: bool = False) -> dict[str, Any]:
+def run_prerequisites(*, repo_root: str | Path | None = None, dry_run: bool = False, agent_ids: list[str] | None = None) -> dict[str, Any]:
     repo_root_path = Path(repo_root) if repo_root is not None else repo_root_from_here()
     config = cfg(repo_root_path)
-    preflight = require_openclaw_harness(config, action='production agent prerequisites')
-    if preflight is not None:
-        return preflight
 
     config_data = load_openclaw_config_dict()
     warnings: list[str] = []
     try:
-        agent_ids = production_agent_ids(config)
+        agent_ids = production_agent_ids(config, agent_ids=agent_ids)
         config_data, root_check, root_warnings = check_and_maybe_patch_openclaw_root(config_data, dry_run=dry_run)
         warnings.extend(root_warnings)
         config_data, registry_check, registry_warnings = check_and_maybe_fill_registry_maintenance(

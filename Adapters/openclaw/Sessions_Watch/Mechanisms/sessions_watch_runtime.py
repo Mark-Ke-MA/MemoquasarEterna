@@ -24,6 +24,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from Adapters.openclaw.Sessions_Watch.Mechanisms.sessions_watch_funcs import build_openclaw_paths, load_known_sessions, save_known_sessions, upsert_known_session
 from Adapters.openclaw.openclaw_shared_funcs import dbg, get_window_date, LoadConfig, SessionFinder
+from Core.shared_funcs import get_production_agents
 
 
 def _repo_root_from_here() -> Path:
@@ -94,7 +95,7 @@ def main() -> None:
 
     repo_root = Path(args.repo_root) if args.repo_root else _repo_root_from_here()
     overall_config = LoadConfig(repo_root).overall_config
-    agents = overall_config.get("agentId_list", [])
+    agents = [item['agentId'] for item in get_production_agents(overall_config) if item['harness'] == 'openclaw']
 
     targets = agents if args.all else [args.agent]
     results = [

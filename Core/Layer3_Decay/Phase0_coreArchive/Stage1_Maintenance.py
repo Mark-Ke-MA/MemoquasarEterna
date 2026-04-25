@@ -4,15 +4,13 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from Core.harness_connector import call_optional_connector, load_harness_connector
+from Core.harness_connector import call_optional_memory_worker_connector
 
 
 def run_stage1(*, repo_root: str | Path | None = None) -> dict[str, Any]:
-    connector = load_harness_connector(repo_root=repo_root)
-    result = call_optional_connector(
-        connector,
-        'memory_worker',
-        'clean_runtime',
+    result = call_optional_memory_worker_connector(
+        repo_root=repo_root,
+        key='clean_runtime',
         context={
             'repo_root': repo_root,
             'inputs': {},

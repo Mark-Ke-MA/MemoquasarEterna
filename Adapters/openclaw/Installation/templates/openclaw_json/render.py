@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from Adapters.openclaw.openclaw_shared_funcs import LoadConfig, output_failure, output_success
+from Core.shared_funcs import get_production_agents
 
 TEMPLATE_PATH = Path(__file__).resolve().parent / 'example-openclaw.json'
 DEFAULT_OUTPUT_PATH = ROOT / 'Installation' / 'example-openclaw.json'
@@ -44,22 +45,22 @@ def _memory_worker_workspace_path(cfg: LoadConfig) -> str:
     return str(Path(template.format(memory_worker_agentId=worker_agent_id)).expanduser())
 
 
-def _context(cfg: LoadConfig) -> dict[str, Any]:
+def _context(cfg: LoadConfig, *, agent_ids: list[str] | None = None) -> dict[str, Any]:
     product_name = str(cfg.overall_config.get('product_name', '') or '').strip()
     if not product_name:
         raise KeyError('OverallConfig.json 缺少 product_name')
     memory_worker_agent_id = str(cfg.overall_config.get('memory_worker_agentId', '') or '').strip()
     if not memory_worker_agent_id:
         raise KeyError('OverallConfig.json 缺少 memory_worker_agentId')
-    agent_id_list = cfg.overall_config.get('agentId_list', [])
-    if not isinstance(agent_id_list, list) or not all(isinstance(x, str) and x.strip() for x in agent_id_list):
-        raise ValueError('OverallConfig.json.agentId_list 非法')
+    agent_id_list = [item['agentId'] for item in get_production_agents(cfg.overall_config) if item['harness'] == 'openclaw'] if agent_ids is None else [str(x).strip() for x in agent_ids if str(x).strip()]
+    if not agent_id_list:
+        raise ValueError('production agent 列表为空')
     return {
         'product_name': product_name,
         'read_plugin_id': _plugin_id_from_product_name(product_name),
         'memory_worker_agentId': memory_worker_agent_id,
         'memory_worker_workspace_path': _memory_worker_workspace_path(cfg),
-        'agentId_list': [str(x).strip() for x in agent_id_list],
+        'production_agent_ids': [str(x).strip() for x in agent_id_list],
     }
 
 
@@ -82,7 +83,7 @@ def _render_node(node: Any, ctx: dict[str, Any], *, agent_id: str | None = None)
     if isinstance(node, list):
         rendered_list: list[Any] = []
         for item in node:
-            if isinstance(item, str) and item.strip() == 'for agentId in {{agentId_list}}: (script expands into per-agent tool patch objects)':
+            if isinstance(item, str) and item.strip() == 'for agentId in {{production_agent_ids}}: (script expands into per-agent tool patch objects)':
                 continue
             rendered_list.append(_render_node(item, ctx, agent_id=agent_id))
         return rendered_list
@@ -213,12 +214,12 @@ def _render_production_agent_entries(template_payload: dict[str, Any], ctx: dict
     _, production_agent_template = _template_agent_entries(template_payload)
     if production_agent_template is None:
         raise KeyError('example-openclaw.json 模板缺少 production agent entry')
-    return [_render_node(production_agent_template, ctx, agent_id=agent_id) for agent_id in ctx['agentId_list']]
+    return [_render_node(production_agent_template, ctx, agent_id=agent_id) for agent_id in ctx['production_agent_ids']]
 
 
-def update_example_openclaw_json(*, repo_root: str | Path | None = None, output_path: str | Path | None = None, scope: Scope, action: Action, dry_run: bool = False) -> dict[str, Any]:
+def update_example_openclaw_json(*, repo_root: str | Path | None = None, output_path: str | Path | None = None, scope: Scope, action: Action, dry_run: bool = False, agent_ids: list[str] | None = None) -> dict[str, Any]:
     cfg = _cfg(repo_root)
-    ctx = _context(cfg)
+    ctx = _context(cfg, agent_ids=agent_ids)
     template_payload = json.loads(TEMPLATE_PATH.read_text(encoding='utf-8'))
     target = Path(output_path) if output_path is not None else DEFAULT_OUTPUT_PATH
     target = target.expanduser()
@@ -233,7 +234,7 @@ def update_example_openclaw_json(*, repo_root: str | Path | None = None, output_
             'read_plugin_id': ctx['read_plugin_id'],
             'memory_worker_agentId': ctx['memory_worker_agentId'],
             'memory_worker_workspace_path': ctx['memory_worker_workspace_path'],
-            'agent_count': len(ctx['agentId_list']),
+            'agent_count': len(ctx['production_agent_ids']),
             'agent_ids_changed': [],
             'plugin_ids_changed': [],
             'status': 'absent',
@@ -250,7 +251,7 @@ def update_example_openclaw_json(*, repo_root: str | Path | None = None, output_
             agent_ids_changed.extend(_remove_agent_entries(payload, {ctx['memory_worker_agentId']}))
 
     if scope in {'production_agent', 'all'}:
-        production_ids = set(ctx['agentId_list'])
+        production_ids = set(ctx['production_agent_ids'])
         if action == 'upsert':
             agent_ids_changed.extend(_upsert_agent_entries(payload, _render_production_agent_entries(template_payload, ctx)))
             plugin_ids_changed.extend(_upsert_plugin_entry(payload, plugin_id=ctx['read_plugin_id']))
@@ -272,7 +273,7 @@ def update_example_openclaw_json(*, repo_root: str | Path | None = None, output_
         'read_plugin_id': ctx['read_plugin_id'],
         'memory_worker_agentId': ctx['memory_worker_agentId'],
         'memory_worker_workspace_path': ctx['memory_worker_workspace_path'],
-        'agent_count': len(ctx['agentId_list']),
+        'agent_count': len(ctx['production_agent_ids']),
         'agent_ids_changed': agent_ids_changed,
         'plugin_ids_changed': plugin_ids_changed,
     }

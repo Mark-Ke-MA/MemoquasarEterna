@@ -247,7 +247,8 @@ def _cleanup_agent_staging_dirs(plan: dict[str, Any], repo_root: str | Path | No
     store_root = Path(str(overall_cfg['store_dir'])).expanduser()
     staging_cfg = overall_cfg['store_dir_structure']['staging']
     staging_surface_root = store_root / staging_cfg['root'] / staging_cfg['staging_surface']
-    agent_ids = _nonempty_str_list(overall_cfg.get('agentId_list', []))
+    from Core.shared_funcs import get_production_agent_ids
+    agent_ids = get_production_agent_ids(overall_cfg)
 
     cleaned_roots: list[str] = []
     for agent_id in agent_ids:

@@ -181,7 +181,8 @@ def _surface_root_for_mode(*, cfg, agent_id: str, restore_mode: str, run_name: s
 
 def run_restore_stage1(*, repo_root: str | None = None, week: str | None = None, date: str | None = None, agent: str | None = None, which_level: str | None = None, restore_mode: str = 'mirrored', run_name: str | None = None) -> dict[str, Any]:
     cfg = load_preserve_config(repo_root)
-    selected_agents = _parse_selected_agents(agent, list(cfg.overall_config.get('agentId_list', [])))
+    from Core.shared_funcs import get_production_agent_ids
+    selected_agents = _parse_selected_agents(agent, get_production_agent_ids(cfg.overall_config))
     selector_type, selector_value, week_id, window_start, window_end = _resolve_selector(week, date)
     levels = _parse_which_level(which_level)
     normalized_run_name = sanitize_run_name(run_name) if restore_mode == 'mirrored' else (sanitize_run_name(run_name) if run_name else None)

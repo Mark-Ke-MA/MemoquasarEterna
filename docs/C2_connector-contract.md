@@ -54,8 +54,9 @@ Adapters/openclaw/CONNECTOR.py
 
 core 通过 `Core/harness_connector.py` 来：
 
-- 读取当前配置指定的 harness
+- 读取 `memory_worker_harness` 与 `production_agents[*].harness`
 - 加载对应 `CONNECTOR.py`
+- 为 production agents 组装 agent-wise / harness-wise routing
 - 获取必选或可选 callable
 - 统一执行调用
 
@@ -229,6 +230,8 @@ CONNECTOR = {
 - 完成 adapter 侧清洗与归一化
 - 返回可供 Layer0 继续处理的标准输入结构
 
+core 会按单个 `agentId` 选择该 agent 对应 harness 的 connector，然后调用该 harness 的 `extract`。
+
 ### `production_agent.preserve`
 
 这是 preserve 相关的 harness hook。
@@ -238,6 +241,8 @@ CONNECTOR = {
 - session registry 归档
 - 平台侧 preserve
 - 与 Layer2 对应的外部状态整理
+
+core 会按 `production_agents[*].harness` 分组调用，并在 context `inputs.agent_ids` 中传入当前 harness 负责的 agent 列表。
 
 ### `production_agent.decay`
 
@@ -249,17 +254,25 @@ CONNECTOR = {
 - 平台侧 decay
 - 与 Layer3 对应的外部状态整理
 
+core 会按 `production_agents[*].harness` 分组调用，并在 context `inputs.agent_ids` 中传入当前 harness 负责的 agent 列表。
+
 ### `production_agent.prerequisites`
 
 这是生产 agent 侧安装前预检入口。
+
+顶层安装器会按 harness 分组调用，并把当前 harness 负责的 `agent_ids` 传给 adapter。
 
 ### `production_agent.install`
 
 这是生产 agent 侧安装入口。
 
+顶层安装器会按 harness 分组调用，并把当前 harness 负责的 `agent_ids` 传给 adapter。
+
 ### `production_agent.uninstall`
 
 这是生产 agent 侧卸载入口。
+
+顶层卸载器会按 harness 分组调用，并把当前 harness 负责的 `agent_ids` 传给 adapter。
 
 ---
 
