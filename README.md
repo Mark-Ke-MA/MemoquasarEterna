@@ -23,7 +23,7 @@
 - 当前版本只支持 macOS 操作系统
 - 当前版本需要本地 Python 环境（基于本机 Python 3.10.8 / 3.14.3 验证）
 - 当前版本支持以下 harness 架构：   
-  - `OpenClaw` -> 主要生产harness，表现稳定（基于本机 OpenClaw 2026.3.24 验证）   
+  - `OpenClaw` -> 主要生产harness，表现稳定（基于本机 OpenClaw 2026.4.23 验证）   
   - `Hermes` -> 试验性harness，只有写入层与读取层的最小实现（基于本机 Hermes 0.11.0 验证）
 - 注：本仓库的任务成功率受到所用 LLM 能力影响；但基准线要求不高。本机主要基于 MiniMax M2.7（200k context）验证，整体表现稳定（任务成功率 >= 95%）
 

@@ -22,7 +22,6 @@ from pathlib import Path
 from typing import Any
 
 
-OPENCLAW_BUNDLE = Path("/opt/homebrew/lib/node_modules/openclaw/dist/pi-embedded-BaSvmUpW.js")
 REQUESTER_SESSION_KEY = os.environ.get("OPENCLAW_LAYER1_REQUESTER_SESSION_KEY", "").strip() or None
 WAIT_TIMEOUT_MS = int(os.environ.get("OPENCLAW_LAYER1_WRITE_RUNTIME_TIMEOUT_MS", "1800000"))
 
@@ -68,62 +67,120 @@ def _parse_strict_json_stdout(text: str) -> dict[str, Any] | None:
     return parsed if isinstance(parsed, dict) else None
 
 
+def _resolve_openclaw_dist_dir() -> Path:
+    configured = os.environ.get("OPENCLAW_DIST_DIR", "").strip()
+    candidates = []
+    if configured:
+        candidates.append(Path(configured).expanduser())
+    candidates.extend(
+        [
+            Path("/opt/homebrew/lib/node_modules/openclaw/dist"),
+            Path("/usr/local/lib/node_modules/openclaw/dist"),
+        ]
+    )
+    for candidate in candidates:
+        if candidate.is_dir():
+            return candidate
+    raise FileNotFoundError(
+        "OpenClaw dist directory not found. Set OPENCLAW_DIST_DIR to the installed openclaw/dist path."
+    )
+
+
+def _select_single_chunk(
+    dist_dir: Path,
+    pattern: str,
+    reject: tuple[str, ...],
+    required_text: str,
+) -> Path:
+    matches = sorted(
+        path
+        for path in dist_dir.glob(pattern)
+        if path.is_file() and not any(marker in path.name for marker in reject)
+    )
+    if required_text:
+        matches = [
+            path
+            for path in matches
+            if required_text in path.read_text(encoding="utf-8", errors="ignore")
+        ]
+    if len(matches) == 1:
+        return matches[0]
+    if not matches:
+        raise FileNotFoundError(f"OpenClaw internal chunk not found: {dist_dir}/{pattern}")
+    names = ", ".join(path.name for path in matches)
+    raise RuntimeError(f"OpenClaw internal chunk is ambiguous for {pattern}: {names}")
+
+
+def _resolve_openclaw_internal_chunks() -> dict[str, Path]:
+    dist_dir = _resolve_openclaw_dist_dir()
+    return {
+        "gateway_call": _select_single_chunk(
+            dist_dir,
+            "call-*.js",
+            (),
+            "function callGateway",
+        ),
+    }
+
+
 def _run_openclaw_session(prompt: str) -> dict[str, Any]:
-    if not OPENCLAW_BUNDLE.exists():
+    try:
+        openclaw_chunks = _resolve_openclaw_internal_chunks()
+    except Exception as exc:  # noqa: BLE001
         return {
             "success": False,
-            "error": f"OpenClaw bundle not found: {OPENCLAW_BUNDLE}",
+            "error": str(exc),
         }
 
     node_script = r'''
 const prompt = process.env.OPENCLAW_LAYER1_PROMPT || '';
-const requesterSessionKey = process.env.OPENCLAW_LAYER1_REQUESTER_SESSION_KEY || '';
 const waitTimeoutMs = Number(process.env.OPENCLAW_LAYER1_WRITE_RUNTIME_TIMEOUT_MS || '1800000');
-const bundlePath = process.env.OPENCLAW_BUNDLE_PATH;
+const gatewayCallPath = process.env.OPENCLAW_GATEWAY_CALL_PATH;
 const sessionAgentId = process.env.OPENCLAW_LAYER1_SESSION_AGENT_ID || '';
-const requesterAgentId = sessionAgentId;
 
 if (!sessionAgentId) {
   throw new Error('OPENCLAW_LAYER1_SESSION_AGENT_ID is required');
 }
 
-const mod = await import(bundlePath);
-const spawnSubagentDirect = mod.Ps;
-const waitForEmbeddedPiRunEnd = mod.l;
+const crypto = await import('node:crypto');
+const gatewayCallMod = await import(gatewayCallPath);
+const callGateway = gatewayCallMod.callGateway || gatewayCallMod.r;
 
-if (typeof spawnSubagentDirect !== 'function') {
-  throw new Error('spawnSubagentDirect (Ps) is not available from OpenClaw bundle');
-}
-if (typeof waitForEmbeddedPiRunEnd !== 'function') {
-  throw new Error('waitForEmbeddedPiRunEnd (l) is not available from OpenClaw bundle');
+if (typeof callGateway !== 'function') {
+  throw new Error(`callGateway is not available from OpenClaw chunk: ${gatewayCallPath}`);
 }
 
-const ctx = {
-  requesterAgentIdOverride: requesterAgentId,
-};
-if (requesterSessionKey) ctx.agentSessionKey = requesterSessionKey;
+function normalizeAgentId(agentId) {
+  return String(agentId || '').trim().toLowerCase();
+}
 
-const spawnResult = await spawnSubagentDirect({
-  task: prompt,
+const normalizedSessionAgentId = normalizeAgentId(sessionAgentId);
+const childSessionKey = `agent:${normalizedSessionAgentId}:subagent:${crypto.randomUUID()}`;
+const runId = crypto.randomUUID();
+
+const agentResult = await callGateway({
+  method: 'agent',
+  params: {
+    message: prompt,
+    sessionKey: childSessionKey,
   agentId: sessionAgentId,
-  mode: 'run',
-  cleanup: 'keep',
-  sandbox: 'inherit',
-  expectsCompletionMessage: false,
-}, ctx);
+    idempotencyKey: runId,
+    deliver: false,
+    lane: 'subagent',
+    cleanupBundleMcpOnRunEnd: true,
+    bootstrapContextMode: 'lightweight',
+    bootstrapContextRunKind: 'default',
+    label: 'MemoquasarEterna memory worker',
+  },
+  timeoutMs: 10000,
+});
 
-const childSessionKey = spawnResult?.childSessionKey || spawnResult?.sessionKey || spawnResult?.session?.key || spawnResult?.session?.sessionKey || '';
+const acceptedRunId = agentResult?.runId || runId;
 
 function getSessionsStorePath(agentId) {
   const home = process.env.HOME || process.env.USERPROFILE || '';
   const stateDir = process.env.OPENCLAW_STATE_DIR || (home ? `${home}/.openclaw` : '.openclaw');
-  return `${stateDir}/agents/${agentId}/sessions/sessions.json`;
-}
-
-function getTranscriptLockPath(agentId, sessionId) {
-  const home = process.env.HOME || process.env.USERPROFILE || '';
-  const stateDir = process.env.OPENCLAW_STATE_DIR || (home ? `${home}/.openclaw` : '.openclaw');
-  return `${stateDir}/agents/${agentId}/sessions/${sessionId}.jsonl.lock`;
+  return `${stateDir}/agents/${normalizeAgentId(agentId)}/sessions/sessions.json`;
 }
 
 async function resolveSessionIdFromStore(agentId, sessionKey, timeoutMs) {
@@ -149,57 +206,31 @@ async function resolveSessionIdFromStore(agentId, sessionKey, timeoutMs) {
   return '';
 }
 
-async function waitForLockDisappear(lockPath, timeoutMs) {
-  const fs = await import('node:fs/promises');
-  const deadline = Date.now() + timeoutMs;
-  let seenLock = false;
-  while (Date.now() < deadline) {
-    try {
-      await fs.access(lockPath);
-      seenLock = true;
-    } catch (e) {
-      if (seenLock) {
-        return 'lock-gone';
-      }
-    }
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  return 'lock-timeout';
-}
+const waitResult = await callGateway({
+  method: 'agent.wait',
+  params: {
+    runId: acceptedRunId,
+    timeoutMs: waitTimeoutMs,
+  },
+  timeoutMs: waitTimeoutMs + 5000,
+});
 
-let sessionId = '';
-if (childSessionKey) {
-  sessionId = await resolveSessionIdFromStore(sessionAgentId, childSessionKey, Math.min(waitTimeoutMs, 5000));
-}
-if (!sessionId && childSessionKey) {
-  sessionId = childSessionKey.split(':').pop() || '';
-}
+const sessionId = await resolveSessionIdFromStore(sessionAgentId, childSessionKey, Math.min(waitTimeoutMs, 5000));
 let waitError = null;
-let waitSource = '';
-
-if (sessionId) {
-  const lockPath = getTranscriptLockPath(sessionAgentId, sessionId);
-  const signalPromise = waitForEmbeddedPiRunEnd(sessionId, waitTimeoutMs).then(() => 'signal-ok').catch((e) => `signal-error:${String(e && e.message ? e.message : e)}`);
-  const lockPromise = waitForLockDisappear(lockPath, waitTimeoutMs).then((result) => result.startsWith('lock-') ? result : `lock-error:${result}`);
-  const winner = await Promise.race([signalPromise, lockPromise]);
-  waitSource = winner;
-  if (winner.startsWith('signal-error:')) {
-    waitError = winner.slice('signal-error:'.length);
-  } else if (winner.startsWith('lock-error:')) {
-    const detail = winner.slice('lock-error:'.length);
-    if (detail !== 'lock-gone') {
-      waitError = detail;
-    }
-  }
+if (!waitResult || waitResult.status === 'timeout') {
+  waitError = 'agent.wait timeout';
+} else if (waitResult.status === 'error') {
+  waitError = waitResult.error || 'agent.wait error';
 }
 
 console.log(JSON.stringify({
-  spawnResult,
+  spawnResult: agentResult,
+  waitResult,
   childSessionKey,
   sessionId,
   sessionAgentId,
   waitError,
-  waitSource,
+  waitSource: 'gateway-agent.wait',
 }, null, 2));
 '''
 
@@ -208,7 +239,7 @@ console.log(JSON.stringify({
     if REQUESTER_SESSION_KEY:
         env["OPENCLAW_LAYER1_REQUESTER_SESSION_KEY"] = REQUESTER_SESSION_KEY
     env["OPENCLAW_LAYER1_WRITE_RUNTIME_TIMEOUT_MS"] = str(WAIT_TIMEOUT_MS)
-    env["OPENCLAW_BUNDLE_PATH"] = str(OPENCLAW_BUNDLE)
+    env["OPENCLAW_GATEWAY_CALL_PATH"] = str(openclaw_chunks["gateway_call"])
     env["OPENCLAW_LAYER1_SESSION_AGENT_ID"] = MEMORY_WORKER_AGENT_ID
 
     proc = subprocess.run(

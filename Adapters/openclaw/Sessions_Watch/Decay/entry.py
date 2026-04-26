@@ -241,6 +241,16 @@ def _prune_active_registry(active_registry: dict[str, Any], target_dates: set[st
     return new_registry, removed_dates
 
 
+def _trajectory_sidecars_for_session_file(path: Path) -> list[Path]:
+    if path.suffix != '.jsonl':
+        return []
+    base = path.with_suffix('')
+    return [
+        base.with_name(f'{base.name}.trajectory.jsonl'),
+        base.with_name(f'{base.name}.trajectory-path.json'),
+    ]
+
+
 def _delete_active_session_files(candidates: list[Path], *, dry_run: bool) -> tuple[list[str], list[str], list[dict[str, str]]]:
     deleted: list[str] = []
     missing: list[str] = []
@@ -252,9 +262,20 @@ def _delete_active_session_files(candidates: list[Path], *, dry_run: bool) -> tu
                 continue
             if dry_run:
                 deleted.append(path.name)
+                for sidecar in _trajectory_sidecars_for_session_file(path):
+                    if sidecar.exists():
+                        deleted.append(sidecar.name)
                 continue
             path.unlink()
             deleted.append(path.name)
+            for sidecar in _trajectory_sidecars_for_session_file(path):
+                if not sidecar.exists():
+                    continue
+                try:
+                    sidecar.unlink()
+                    deleted.append(sidecar.name)
+                except Exception as exc:
+                    failed.append({'file': sidecar.name, 'reason': str(exc)})
         except Exception as exc:
             failed.append({'file': path.name, 'reason': str(exc)})
     return deleted, missing, failed

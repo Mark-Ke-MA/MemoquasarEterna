@@ -56,8 +56,16 @@ OpenClaw sessions / registry -> Adapters/openclaw/Extract -> Core/Layer0_Extract
 Layer1 / Layer3 LLM：
 
 ```text
-Core Layer1 / Layer3 -> memory_worker.call_llm -> openclaw_call_LLM.py -> OpenClaw MW runtime
+Core Layer1 / Layer3 -> memory_worker.call_llm -> openclaw_call_LLM.py -> OpenClaw gateway agent run
 ```
+
+`openclaw_call_LLM.py` 通过 OpenClaw gateway `agent` / `agent.wait` 启动独立 MW session：
+
+```text
+agent:{memory_worker_agentId}:subagent:{uuid}
+```
+
+这条路径不依赖 OpenClaw dist chunk 的私有 `spawnSubagentDirect`，也不依赖 `.jsonl.lock`。MW session 只承担 prompt 执行和文件写入，不向 PA / main session 汇报完成消息。
 
 Layer2 / Layer3 hook：
 
@@ -92,6 +100,15 @@ Core/Layer4_Read -> Adapters/openclaw/Read -> OpenClaw plugin tools + skill
 | Decay | Layer3 trim / shallow / deep | 谨慎清理 session watch data |
 
 生产 agent 原始 session 文件衰减默认关闭。只有理解风险后，才应在 `OpenclawConfig.json` 中开启 `sessions_registry_maintenance.session_files_decay`。
+
+OpenClaw 2026.4.x 会在主 session transcript 旁边写入 trajectory sidecar：
+
+```text
+{sessionUUID}.trajectory.jsonl
+{sessionUUID}.trajectory-path.json
+```
+
+它们是 runtime/debug flight recorder，不是 Layer0 输入，也不会被 preserve 默认归档。若 `session_files_decay` 开启，adapter 只会在删除某个已确认衰减的 `{sessionUUID}.jsonl` 时，同步尝试删除同 basename 的两个 trajectory sidecar；找不到则跳过，不做 glob 或 UUID 推断。
 
 ## 配置体系
 
