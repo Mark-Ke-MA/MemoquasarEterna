@@ -19,15 +19,21 @@ python Installation/INSTALL.py
    - 将 `Installation/example-openclaw.json` merge 到你的 OpenClaw 配置中
    - 重启 OpenClaw gateway
    - 开一个新 session，使新安装的 plugin-shipped skill 稳定生效
+5. 如果某个 `production_agents[*].harness` 为 `hermes`：
+   - 确认对应 `agentId` 已经是一个存在的 Hermes profile
+   - 安装器会把 `memoquasar-memory-recall` skill 写入该 profile
+   - Hermes adapter 当前不支持作为 `memory_worker_harness`
 
 ## 配置文件生成
 仓库跟踪的是模板文件：
 - `OverallConfig-template.json`
 - `Adapters/openclaw/OpenclawConfig-template.json`
+- `Adapters/hermes/HermesConfig-template.json`
 
 本地实际运行读取的是：
 - `OverallConfig.json`
 - `Adapters/openclaw/OpenclawConfig.json`
+- `Adapters/hermes/HermesConfig.json`
 
 `Installation/INSTALL.py` 会在本地配置缺失时，从对应模板复制生成 `Config.json`。生成后请只修改本地 `Config.json`，不要把本机私有配置提交进 git。
 
@@ -134,6 +140,58 @@ Installation/example-openclaw.json
 - 为相关 agent 追加 recall 工具的 allow 项
 
 当前版本不会把 MemoquasarEterna 配置成 OpenClaw 的 active memory backend，因此不需要把 `plugins.slots.memory` 指向 MemoquasarEterna。
+
+## Hermes 额外步骤
+
+当某个 `production_agents[*].harness` 为 `hermes` 时：
+
+### 1. Hermes profile 检查
+
+Hermes adapter 将：
+
+```text
+production_agents[*].agentId
+```
+
+解释为 Hermes profile 名。
+
+例如：
+
+```json
+{"agentId": "hermes-init", "harness": "hermes"}
+```
+
+要求本地存在：
+
+```text
+~/.hermes/profiles/hermes-init/
+```
+
+### 2. Hermes skill 安装
+
+安装器会把 MemoquasarEterna recall skill 写入：
+
+```text
+~/.hermes/profiles/{agentId}/skills/memoquasar-memory-recall/SKILL.md
+```
+
+该 skill 通过 terminal 调用 `Core/Layer4_Read/` 的读取能力。
+
+### 3. 当前限制
+
+Hermes adapter 当前只实现 production agent 的最小能力：
+
+- Layer0 extract
+- Layer4 recall skill install / uninstall
+
+它当前不支持：
+
+- memory worker LLM 调用
+- memory worker runtime cleanup
+- production agent preserve
+- production agent decay
+
+因此不应将 `memory_worker_harness` 设置为 `hermes`。
 
 ## snapshot 机制
 每次成功的顶层 install 都会写入：

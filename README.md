@@ -14,7 +14,8 @@
 
 ## 当前支持范围与说明
 
-- 当前版本只支持 macOS 与 OpenClaw，并基于本机 OpenClaw 2026.3.24 验证
+- 当前版本只支持 macOS；OpenClaw 是主要生产 harness，并基于本机 OpenClaw 2026.3.24 验证
+- Hermes adapter 当前提供 experimental production-agent support，仅覆盖 Layer0 extract 与 Layer4 recall skill
 - 使用本仓库需要本地 Python 环境
 - 本项目的任务成功率受到所用 LLM 能力影响，尤其是上下文窗口、长文本稳定性与工具调用服从性；本机主要基于 MiniMax M2.7（200k context）验证，整体表现稳定
 - 本仓库由本人和凯尔希（使用 OpenAI GPT-5.4 与 Claude Sonnet 4.6）协作开发
@@ -115,6 +116,7 @@
 当前主要实现：
 
 - `Adapters/openclaw/`
+- `Adapters/hermes/`
 
 它负责把 `Core/` 接到具体运行平台，并通过 `CONNECTOR.py` 暴露统一接口。
 
@@ -153,12 +155,14 @@ cd {code_dir}
 
 - `OverallConfig.json`
 - `Adapters/openclaw/OpenclawConfig.json`
+- `Adapters/hermes/HermesConfig.json`
 
 也可以在安装前手动复制：
 
 ```bash
 cp OverallConfig-template.json OverallConfig.json
 cp Adapters/openclaw/OpenclawConfig-template.json Adapters/openclaw/OpenclawConfig.json
+cp Adapters/hermes/HermesConfig-template.json Adapters/hermes/HermesConfig.json
 ```
 
 然后编辑本地配置文件。`Config-template.json` 由仓库跟踪，`Config.json` 是本机私有配置，不应提交。
@@ -188,6 +192,8 @@ python Installation/INSTALL.py
 - 补全 `key_template`
 - 将 `Installation/example-openclaw.json` merge 到您的 OpenClaw 配置中
 - 重启 OpenClaw gateway
+
+如果某个 `production_agents[*].harness` 使用 `hermes`，安装器会检查对应 Hermes profile 是否存在，并把 `memoquasar-memory-recall` skill 安装到该 profile。Hermes adapter 当前不支持作为 `memory_worker_harness`。
 
 ---
 
@@ -252,6 +258,7 @@ Installation/.install_logs/
 6. `docs/C1_architecture.md`
 7. `docs/C2_connector-contract.md`
 8. `docs/C3_adapter-openclaw.md`
+9. `docs/C4_adapter-hermes.md`
 
 ### 各文档用途
 
@@ -278,6 +285,9 @@ Installation/.install_logs/
 
 - `docs/C3_adapter-openclaw.md`
   - OpenClaw adapter 的结构与职责
+
+- `docs/C4_adapter-hermes.md`
+  - Hermes adapter 的实验性能力边界、Layer0 / Layer4 接入方式与已知限制
 
 ---
 
@@ -312,14 +322,18 @@ Installation/.install_logs/
 
 当前 `openclaw` adapter 已接入以下固定能力：
 
-- `call_llm`
-- `prerequisites`
-- `install`
-- `uninstall`
-- `extract`
-- `harness_clean`
-- `harness_preserve`
-- `harness_decay`
+- `ensure_config`
+- `memory_worker.call_llm`
+- `memory_worker.clean_runtime`
+- `memory_worker.prerequisites`
+- `memory_worker.install`
+- `memory_worker.uninstall`
+- `production_agent.extract`
+- `production_agent.preserve`
+- `production_agent.decay`
+- `production_agent.prerequisites`
+- `production_agent.install`
+- `production_agent.uninstall`
 
 对应目录位于：
 
@@ -332,6 +346,35 @@ Adapters/openclaw/
 - `Adapters/openclaw/README.md`
 - `docs/C3_adapter-openclaw.md`
 
+### Hermes
+
+当前 `hermes` adapter 是 experimental adapter，已接入以下能力：
+
+- `ensure_config`
+- `production_agent.extract`
+- `production_agent.prerequisites`
+- `production_agent.install`
+- `production_agent.uninstall`
+- Layer4 recall skill：`memoquasar-memory-recall`
+
+当前未接入：
+
+- `memory_worker.call_llm`
+- `memory_worker.clean_runtime`
+- `production_agent.preserve`
+- `production_agent.decay`
+
+对应目录位于：
+
+```text
+Adapters/hermes/
+```
+
+更多说明见：
+
+- `Adapters/hermes/README.md`
+- `docs/C4_adapter-hermes.md`
+
 ---
 
 ## 开发与维护提示
@@ -343,5 +386,7 @@ Adapters/openclaw/
   - `docs/C2_connector-contract.md`
 - 修改 OpenClaw adapter 结构前，优先同步更新：
   - `docs/C3_adapter-openclaw.md`
+- 修改 Hermes adapter 结构前，优先同步更新：
+  - `docs/C4_adapter-hermes.md`
 
 如需理解整体设计，请先从 `docs/C1_architecture.md` 开始。

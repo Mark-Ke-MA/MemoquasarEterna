@@ -45,7 +45,7 @@ def _memory_worker_workspace_path(cfg: LoadConfig) -> str:
     return str(Path(template.format(memory_worker_agentId=worker_agent_id)).expanduser())
 
 
-def _context(cfg: LoadConfig, *, agent_ids: list[str] | None = None) -> dict[str, Any]:
+def _context(cfg: LoadConfig, *, agent_ids: list[str] | None = None, require_production_agents: bool = True) -> dict[str, Any]:
     product_name = str(cfg.overall_config.get('product_name', '') or '').strip()
     if not product_name:
         raise KeyError('OverallConfig.json 缺少 product_name')
@@ -53,7 +53,7 @@ def _context(cfg: LoadConfig, *, agent_ids: list[str] | None = None) -> dict[str
     if not memory_worker_agent_id:
         raise KeyError('OverallConfig.json 缺少 memory_worker_agentId')
     agent_id_list = [item['agentId'] for item in get_production_agents(cfg.overall_config) if item['harness'] == 'openclaw'] if agent_ids is None else [str(x).strip() for x in agent_ids if str(x).strip()]
-    if not agent_id_list:
+    if require_production_agents and not agent_id_list:
         raise ValueError('production agent 列表为空')
     return {
         'product_name': product_name,
@@ -219,7 +219,7 @@ def _render_production_agent_entries(template_payload: dict[str, Any], ctx: dict
 
 def update_example_openclaw_json(*, repo_root: str | Path | None = None, output_path: str | Path | None = None, scope: Scope, action: Action, dry_run: bool = False, agent_ids: list[str] | None = None) -> dict[str, Any]:
     cfg = _cfg(repo_root)
-    ctx = _context(cfg, agent_ids=agent_ids)
+    ctx = _context(cfg, agent_ids=agent_ids, require_production_agents=scope in {'production_agent', 'all'})
     template_payload = json.loads(TEMPLATE_PATH.read_text(encoding='utf-8'))
     target = Path(output_path) if output_path is not None else DEFAULT_OUTPUT_PATH
     target = target.expanduser()

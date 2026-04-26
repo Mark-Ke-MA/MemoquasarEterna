@@ -1,0 +1,40 @@
+---
+name: memoquasar-memory-recall
+description: Prefer MemoquasarEterna recall when the user asks about prior conversations, previous decisions, recent work, or exact past wording.
+---
+
+When the user asks about past conversation content, earlier decisions, recent work, or exact wording, use MemoquasarEterna recall instead of relying only on current context.
+
+Use the terminal tool with these commands.
+
+## Vague Recall
+
+For fuzzy memory, recent overview, yesterday/recent work, or whether something was discussed before:
+
+```bash
+__PYTHON_BIN__ "__RECALL_ENTRY__" vague --agent "__AGENT_ID__" --query "<short query>"
+```
+
+If the user asks for recent context without a clear topic:
+
+```bash
+__PYTHON_BIN__ "__RECALL_ENTRY__" vague --agent "__AGENT_ID__" --recent-days 3
+```
+
+Optional parameters:
+
+```bash
+--date-window YYYY-MM-DD
+--date-window YYYY-MM-DD,YYYY-MM-DD
+--prefer-l2-ratio 0.5
+```
+
+## Exact Recall
+
+For exact wording or a specific time window:
+
+```bash
+__PYTHON_BIN__ "__RECALL_ENTRY__" exact --agent "__AGENT_ID__" --date YYYY-MM-DD --window-start HH:MM --window-end HH:MM
+```
+
+Answer with the conclusion first, then summarize the recalled result. Do not dump long recall output unless the user asks for exact wording.

@@ -69,6 +69,7 @@
 - 当前主要值为：
   - `openclaw`
 - `call_llm` 与 memory-worker runtime cleanup 会通过它路由。
+- Hermes adapter 当前不实现 memory worker 侧接口，因此不应设为 `hermes`。
 
 ### `production_agents`
 - 生产级 agent 列表。
@@ -77,6 +78,10 @@
   - `harness`
 - 系统会用它来构建存储结构、session-watch 相关产物，并按 `harness` 分组执行 production-agent hook。
 - `agentId` 不应包含重复项。
+- 当前可用 harness：
+  - `openclaw`
+  - `hermes`，experimental，仅覆盖 Layer0 extract 与 Layer4 recall skill
+- 当 `harness == "hermes"` 时，`agentId` 等同于 Hermes profile 名。
 
 ### `code_dir`
 - 本地仓库根目录。

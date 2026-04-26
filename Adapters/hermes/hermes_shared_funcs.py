@@ -48,3 +48,11 @@ def profile_state_db_path(config: LoadConfig, agent_id: str) -> Path:
     profiles_root = Path(str(config.hermes_config['profiles_root'])).expanduser()
     state_db_name = str(config.hermes_config['state_db_name']).strip()
     return profiles_root / profile / state_db_name
+
+
+def profile_dir_path(config: LoadConfig, agent_id: str) -> Path:
+    profile = str(agent_id or '').strip()
+    if not profile:
+        raise ValueError('Hermes agent_id/profile 不能为空')
+    profiles_root = Path(str(config.hermes_config['profiles_root'])).expanduser()
+    return profiles_root / profile
