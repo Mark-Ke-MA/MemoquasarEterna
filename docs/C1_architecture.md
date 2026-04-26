@@ -1,29 +1,8 @@
 # Architecture
 
-## 文档目标
-
-本文档用于说明 **MemoquasarEterna** 当前代码仓库的整体架构。
-
-它回答的核心问题是：
-
-- 仓库为什么按现在的目录结构组织
-- `Core/`、`Adapters/`、`Installation/`、`Maintenance/` 各自承担什么角色
-- Layer0–4 与 LayerX 之间如何协作
-- connector 与 adapter 在整体设计中的位置是什么
-- 一次完整 memory pipeline 大致如何流动
-
-这是一份**整体结构文档**。更细的实现细节应分别进入：
-
-- `Core/README.md`
-- 各 Layer 自己的 `README.md`
-- `docs/C2_connector-contract.md`
-- `docs/C3_adapter-openclaw.md`
-
----
+本文档说明 MemoquasarEterna 的整体结构、memory schema、layer 协作方式，以及 adapter / connector 在其中的位置。实现细节见各 Layer README、`docs/C2_connector-contract.md`、`docs/C3_adapter-openclaw.md`、`docs/C4_adapter-hermes.md`。
 
 ## 总体结构
-
-当前仓库根目录采用如下组织：
 
 ```text
 {code_dir}/
@@ -36,81 +15,25 @@
   README.md
 ```
 
-这套结构把整个产品分成四个层次：
+| 目录 | 职责 |
+| --- | --- |
+| `Core/` | memory engine 本体：写入、preserve、decay、read、landmark judge |
+| `Adapters/` | 外部 harness 接入层，例如 OpenClaw、Hermes |
+| `Installation/` | 初始安装、配置引导、backfill、uninstall / refresh |
+| `Maintenance/` | rerun、补跑、失败恢复、人工运维脚本 |
+| `docs/` | 用户与维护者文档 |
 
-- `Core/`
-  - memory engine 本体
-  - 承担写入、preserve、decay、read、landmark judge
-
-- `Adapters/`
-  - 外部环境接入层
-  - 负责把 `Core/` 接到 OpenClaw 等具体 harness 上
-
-- `Installation/`
-  - 初始安装、初始 backfill、首次落地相关脚本
-
-- `Maintenance/`
-  - rerun、补跑、维护与人工运维脚本
-
-一句话说：
-
-> `Core/` 负责记忆系统本身，`Adapters/` 负责外部接入，`Installation/` 负责初始落地，`Maintenance/` 负责后续维护。
-
----
+核心原则：`Core/` 不直接理解外部平台，`Adapters/` 不改写 memory engine 的主职责。
 
 ## 为什么这样分层
 
-这套结构服务于三个目标：
+| 目标 | 说明 |
+| --- | --- |
+| core 与平台分离 | 会话读取、LLM 调用、plugin 安装等平台差异由 adapter 承接 |
+| 初始化与维护分离 | 首次落地看 `Installation/`，运行后修复与补跑看 `Maintenance/` |
+| 仓库结构可扩展 | 新增 harness 或 Layer 功能时有稳定归属 |
 
-### 1. 把 memory engine 与外部平台接入分开
-
-记忆系统的核心逻辑，例如：
-
-- 如何写入
-- 如何 archive
-- 如何 decay
-- 如何 recall
-
-应当保持为独立的 core。
-
-外部平台差异，例如：
-
-- OpenClaw session 如何读取
-- 某个 harness 如何发起 `call_llm`
-- 某个平台如何安装 plugin
-
-则放到 adapter 中处理。
-
-这样可以让：
-
-- `Core/` 保持相对稳定
-- `Adapters/` 负责环境特化
-- 新增 harness 时尽量不改动 core 主体
-
-### 2. 把“初始落地”与“后续维护”分开
-
-初始 backfill、初始部署、首次初始化，与后续 rerun、补跑、日常维护，本质上是两类不同操作。
-
-因此：
-
-- `Installation/` 负责首次落地动作
-- `Maintenance/` 负责后续人工维护动作
-
-### 3. 让仓库结构更适合公开发布与长期维护
-
-如果所有 Layer、脚本、adapter、安装逻辑全部平铺在根目录，结构会快速失控。
-
-把目录职责明确化之后：
-
-- 初次阅读更容易建立全局心智模型
-- 文档入口更清晰
-- 后续新增功能更容易找到合适位置
-
----
-
-## `Core/` 的内部结构
-
-当前 `Core/` 组织为：
+## Core 内部结构
 
 ```text
 Core/
@@ -124,333 +47,204 @@ Core/
   LayerX_LandmarkJudge/
 ```
 
-其中：
+| 模块 | 职责 |
+| --- | --- |
+| `shared_funcs.py` | 配置加载、JSON 读写、标准输出等共用函数 |
+| `harness_connector.py` | 加载 `Adapters/{harness}/CONNECTOR.py`，按 MW / PA 路由能力 |
+| `Layer0_Extract` | harness 原始输入 -> L2 / L1 init / staging |
+| `Layer1_Write` | L2 -> chunk -> Map/Reduce -> L1 -> L0 / embedding / statistics |
+| `Layer2_Preserve` | active surface memory 的 archive / restore |
+| `Layer3_Decay` | trim L2、shallow 聚合、deep 聚合、cleanup |
+| `Layer4_Read` | vague recall / exact recall |
+| `LayerX_LandmarkJudge` | 基于 statistics records 做长期统计与 landmark 判定 |
 
-### `shared_funcs.py`
-负责 core 共用的最小公共函数，例如：
+## Memory Schema: L2 / L1 / L0
 
-- 配置加载
-- JSON 读写
-- 标准输出辅助
+| Schema | 主要作用 | 典型消费者 |
+| --- | --- | --- |
+| L2 | 日级原文 transcript，最高保真、最高上下文成本 | Layer1 map、Layer4 exact recall、证据回看 |
+| L1 | 日级结构化总结，适合人和 LLM 阅读 | Layer4 vague recall、Layer3 decay、statistics |
+| L0 | 轻量检索索引 | Layer4 query recall、embedding、关键词搜索 |
 
-### `harness_connector.py`
-负责 connector 的加载与调用桥接。
+简短理解：
 
-它的职责是：
+- L2 负责“原话是什么”
+- L1 负责“这天发生了什么”
+- L0 负责“这天值不值得被找回来”
 
-- 读取当前配置指定的 harness
-- 加载 `Adapters/{harness}/CONNECTOR.py`
-- 提供固定接口的必选/可选 callable 读取逻辑
+### L2
 
-### Layer0–4 与 LayerX
-这六个目录构成 memory engine 的主体。
-
----
-
-## Layer 体系
-
-当前 memory core 使用 `Layer0 → Layer4 + LayerX` 的组织。
-
-### Layer0_Extract
-负责原始输入提取与标准化。
-
-它把某个 agent 某一天的原始输入转换成 Layer0 产物，包括：
-
-- surface `L2`
-- surface `L1` 初始化文件
-- staging 中间产物
-
-### Layer1_Write
-负责日级记忆写入主流水线。
-
-它从 Layer0 开始，继续完成：
-
-- chunk 规划
-- Map/Reduce
-- 正式写回
-- L0 / embedding 更新
-- statistics 记录
-- 清理收尾
-
-### Layer2_Preserve
-负责 surface 层周级 preserve。
-
-它提供：
-
-- archive
-- restore
-- 周级归档日志
-
-Layer2 为后续更长期的数据生命周期管理提供安全副本与可审计对象。
-
-### Layer3_Decay
-负责多层级 decay。
-
-它在 preserve 已建立安全副本的前提下，对 active memory 做进一步整理，包括：
-
-- trim L2
-- shallow 聚合
-- deep 聚合
-- cleanup
-
-### Layer4_Read
-负责读取与召回。
-
-它提供两条主线：
-
-- vague recall
-- exact recall
-
-Layer4 把已经写成并经过整理的 memory 结构重新转换为可供 agent / harness 直接消费的读取结果。
-
-### LayerX_LandmarkJudge
-负责 landmark 判定。
-
-它基于长期保留的 statistics records：
-
-- 做结构化分析
-- 打分
-- 输出 landmark 判定
-
-这个结果主要服务于 Layer3 的决策。
-
----
-
-## Layer 之间的协作关系
-
-### 写入主线
-
-最核心的日级写入链路是：
+路径：
 
 ```text
-原始输入
-  ↓
-Layer0_Extract
-  ↓
-Layer1_Write
+{store_dir}/memory/{agentId}/surface/YYYY-MM/YYYY-MM-DD_l2.json
 ```
 
-这条链把原始会话输入转换成 surface 层的正式记忆结构。
+核心形状：
 
-### preserve 与 decay 主线
+```json
+{
+  "schema_version": "3.1",
+  "date": "YYYY-MM-DD",
+  "agent_id": "<agentId>",
+  "status": "...",
+  "conversation_excerpts": [
+    {
+      "role": "user|assistant",
+      "time": "HH:MM",
+      "content": "...",
+      "message_type": "text",
+      "turn_index": 0
+    }
+  ]
+}
+```
 
-在日级写入之后，系统继续进入更长期的数据整理过程：
+要点：L2 由 Layer0 归一化产生；`conversation_excerpts` 是 Layer1 chunk planning 的输入；`turn_index` 是 L1 里 `source_turns` / `emotional_peaks[].turn` 的锚点。
+
+### L1
+
+路径：
 
 ```text
-Layer1_Write
-  ↓
-Layer2_Preserve
-  ↓
-Layer3_Decay
+{store_dir}/memory/{agentId}/surface/YYYY-MM/YYYY-MM-DD_l1.json
 ```
 
-其中：
+核心形状：
 
-- Layer2 负责先保住
-- Layer3 负责继续减薄与整理
+```json
+{
+  "success": true,
+  "schema_version": "3.1",
+  "date": "YYYY-MM-DD",
+  "agent_id": "<agentId>",
+  "status": {...},
+  "generated_at": "YYYY-MM-DDTHH:MM:SSZ",
+  "stats": {...},
+  "memory_signal": "low|normal",
+  "summary": "...",
+  "tags": ["..."],
+  "day_mood": "...",
+  "topics": [{"name": "...", "detail": "..."}],
+  "decisions": ["..."],
+  "todos": ["..."],
+  "key_items": [{"type": "milestone|bug_fix|config_change|decision|incident|question", "desc": "..."}],
+  "emotional_peaks": [{"turn": 0, "emotion": "...", "intensity": 3, "context": "..."}],
+  "_compress_hints": [0]
+}
+```
 
-### read 主线
+要点：L1 由 Layer1 Map / Reduce 生成，Stage5 写回正式 surface 文件；`memory_signal="low"` 表示当天缺乏可沉淀内容；`topics` / `decisions` / `todos` / `key_items` 是日常阅读和 vague recall 的主要材料；reduce 产生的 `source_turns` 最终写入 `_compress_hints`。
 
-读取层基于已经写成并经过整理的结果工作：
+### L0
+
+路径：
 
 ```text
-Layer1_Write / Layer2_Preserve / Layer3_Decay
-  ↓
-Layer4_Read
+{store_dir}/memory/{agentId}/surface/l0_index.json
+{store_dir}/memory/{agentId}/surface/l0_embeddings.json
 ```
 
-Layer4 读取的主要来源包括：
+`l0_index.json`：
 
-- surface
-- shallow
-- deep
-- archived `L2`
+```json
+{
+  "schema_version": "3.1",
+  "agent_id": "<agentId>",
+  "updated_at": "YYYY-MM-DDTHH:MM:SSZ",
+  "entries": [
+    {
+      "date": "YYYY-MM-DD",
+      "summary": "...",
+      "tags": ["..."],
+      "mood": "...",
+      "depth": "surface",
+      "access_count": 0
+    }
+  ]
+}
+```
 
-### landmark judge 的位置
+`l0_embeddings.json`：
 
-LayerX 主要与 Layer1 和 Layer3 相连：
+```json
+{
+  "schema_version": "3.1",
+  "agent_id": "<agentId>",
+  "model": "<embedding_model>",
+  "updated_at": "YYYY-MM-DDTHH:MM:SSZ",
+  "entries": {
+    "YYYY-MM-DD::surface": {
+      "depth": "surface",
+      "embedding": [0.0],
+      "text_used": "...",
+      "generated_at": "YYYY-MM-DDTHH:MM:SSZ",
+      "date": "YYYY-MM-DD"
+    }
+  }
+}
+```
+
+要点：surface L0 由 Stage6 从正式 L1 提取 `date`、`summary`、`tags`、`day_mood`；Stage7 基于 L0 构造 embedding；surface 唯一键语义是 `date + depth`，重跑同日会覆写但保留 `access_count`。
+
+## 主链路
+
+日级写入：
 
 ```text
-Layer1 Stage8 statistics
-  ↓
-LayerX_LandmarkJudge
-  ↓
-Layer3 decision making
+harness 原始数据 -> Layer0 Extract -> L2 -> Layer1 Map/Reduce -> L1 -> Stage6/7 -> L0 / embeddings
 ```
 
-因此 LayerX 更像一个跨层辅助判定层，而不是线性主流水线中的又一个写入层。
-
----
-
-## 数据生命周期视角
-
-如果从数据生命周期看，当前系统大致可以分成四段：
-
-### 1. 输入接入
-由 Layer0 完成。
-
-目标是把原始输入变成统一可处理的结构。
-
-### 2. 表层写入
-由 Layer1 完成。
-
-目标是把原始输入写成 surface 层可长期保留、可继续处理的正式记忆。
-
-### 3. 长期整理
-由 Layer2 + Layer3 完成。
-
-目标是：
-
-- 先建立安全副本
-- 再逐层减薄
-- 让长期记忆规模可控、结构可检索
-
-### 4. 读取消费
-由 Layer4 完成。
-
-目标是把 memory core 中的结构化结果转换成上层 agent / harness 可直接消费的读取输出。
-
----
-
-## connector 与 adapter 的关系
-
-当前架构中，`Core/` 并不直接知道某个 harness 的内部实现细节。
-
-它只知道一件事：
-
-> 当前 harness 会在 `Adapters/{harness}/CONNECTOR.py` 中暴露一组固定接口。
-
-### 为什么要有 `CONNECTOR.py`
-
-因为 core 关心的是能力，而不是某个平台内部如何拆目录。
-
-例如 core 只关心：
-
-- memory worker 如何 `call_llm`
-- memory worker 如何 `clean_runtime`
-- production agent 如何 `extract`
-- production agent 如何 `preserve`
-- production agent 如何 `decay`
-
-至于这些能力在 adapter 内部如何组织，交给 adapter 自己决定。
-
-### 当前固定接口
-
-当前 connector 约定包括：
-
-- `memory_worker`：
-  - `call_llm`
-  - `clean_runtime`
-  - `prerequisites`
-  - `install`
-  - `uninstall`
-
-- `production_agent`：
-  - `extract`
-  - `preserve`
-  - `decay`
-  - `prerequisites`
-  - `install`
-  - `uninstall`
-
-这样的好处是：
-
-- `Core/` 只依赖稳定 contract
-- `Adapters/` 可以独立演进内部结构
-- 新 harness 接入时复用同一套能力边界
-
----
-
-## OpenClaw 在整体架构中的位置
-
-当前仓库中，OpenClaw 是最主要的 adapter 实现。
-
-位置在：
+长期整理：
 
 ```text
-Adapters/openclaw/
+surface L2/L1/L0 -> Layer2 Preserve -> archive backup -> Layer3 Decay -> trim L2 / shallow L1 / deep L1
 ```
 
-它的职责包括：
+读取：
 
-- 提供 `CONNECTOR.py`
-- 实现 Layer0 所需的 `extract`
-- 实现 Layer1 / Layer3 所需的 `call_llm` 与 runtime hook
-- 提供 Layer4 read 的平台侧包装模板
-- 组织 Sessions_Watch 相关 preserve / decay 逻辑
+```text
+query -> Layer4 -> L0 命中候选日期 -> L1 提供结构化上下文 -> 必要时 L2 提供原文证据
+```
 
-也就是说，OpenClaw 并不是 memory engine 本体，而是当前 memory engine 的主要运行环境适配层。
+Landmark：
 
----
+```text
+Layer1 Stage8 statistics -> LayerX_LandmarkJudge -> Layer3 decision making
+```
 
-## `Installation/` 与 `Maintenance/` 的位置
+## Connector 与 Adapter
 
-### `Installation/`
-`Installation/` 主要承接：
+`Core/` 通过 `Core/harness_connector.py` 加载：
 
-- 初始 backfill
-- 初始部署时的辅助脚本
+```text
+Adapters/{harness}/CONNECTOR.py
+```
 
-它服务的是“第一次把系统落地起来”的场景。
+connector contract 让 core 只关心能力名，而不关心 adapter 内部目录。当前固定接口包括：
 
-### `Maintenance/`
-`Maintenance/` 主要承接：
+```text
+ensure_config
+memory_worker.call_llm / clean_runtime / prerequisites / install / uninstall
+production_agent.extract / preserve / decay / prerequisites / install / uninstall
+```
 
-- rerun
-- failed log 相关补跑
-- 维护性操作
+当前 adapter 状态：
 
-它服务的是“系统已经运行起来之后”的运维场景。
+| Adapter | 状态 | 主要能力 |
+| --- | --- | --- |
+| OpenClaw | production / default | Layer0 extract、MW call_llm、runtime cleanup、Layer4 plugin、Sessions_Watch preserve / decay |
+| Hermes | experimental | PA Layer0 extract、Layer4 recall skill；不提供 MW / preserve / decay |
 
-这两个目录让主仓库里的脚本角色更清楚：
+## Installation / Maintenance / Reading
 
-- 首次落地看 `Installation/`
-- 后续维护看 `Maintenance/`
-
----
-
-## 当前架构的几个核心原则
-
-### 1. core 与 adapter 分离
-memory engine 与外部平台接入保持解耦。
-
-### 2. connector contract 固定
-core 通过稳定接口访问 adapter 能力。
-
-### 3. layer 各司其职
-写入、preserve、decay、read、judge 分别组织，不混在同一层中。
-
-### 4. 读取层独立
-读取能力由 Layer4 作为独立层承载，而不是嵌入到 connector contract 中。
-
-### 5. 初始化与维护分离
-首次落地与后续维护作为两类不同职责单独组织。
-
----
-
-## 推荐阅读顺序
-
-如果你第一次进入这个仓库，建议按以下顺序阅读：
-
-1. 根目录 `README.md`
-2. `docs/A1_installation-guide.md`
-3. `docs/B1_maintenance-guide.md`
-4. `Core/README.md`
-5. 各 Layer README：
-   - `Core/Layer0_Extract/README.md`
-   - `Core/Layer1_Write/README.md`
-   - `Core/Layer2_Preserve/README.md`
-   - `Core/Layer3_Decay/README.md`
-   - `Core/Layer4_Read/README.md`
-   - `Core/LayerX_LandmarkJudge/README.md`
-4. `Adapters/openclaw/README.md`
-5. `docs/C2_connector-contract.md`
-6. `docs/C3_adapter-openclaw.md`
-
----
+| 主题 | 入口 |
+| --- | --- |
+| 首次安装、配置引导、backfill、uninstall、refresh | `Installation/`、`docs/A1_installation-guide.md` |
+| rerun、补跑、失败日志处理、人工维护 | `Maintenance/`、`docs/B1_maintenance-guide.md` |
+| 继续理解架构与接口 | `Core/README.md`、各 Layer README、`docs/C2_connector-contract.md` |
+| 继续理解 adapter | `Adapters/openclaw/README.md` / `docs/C3_adapter-openclaw.md`；`Adapters/hermes/README.md` / `docs/C4_adapter-hermes.md` |
 
 ## 一句话总结
 
-MemoquasarEterna 当前采用的是一种：
-
-> **以 `Core/` 为 memory engine、以 `Adapters/` 为外部接入层、以 `Installation/` 与 `Maintenance/` 组织运维脚本，并由 Layer0–4 + LayerX 分担完整记忆生命周期的分层架构。**
+MemoquasarEterna 以 `Core/` 为 memory engine、以 `Adapters/` 为外部接入层、以 `Installation/` 与 `Maintenance/` 组织运维脚本，并由 Layer0–4 + LayerX 分担完整记忆生命周期。

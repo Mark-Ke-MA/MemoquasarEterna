@@ -12,15 +12,20 @@
 - 自动计算上下文预算并切分聊天记录，避免“信息轰炸 / 小作文”导致 agent 死机
 - 只在需要时读取；既不会乱污染日常使用时的上下文，又能让 agent 有“翻旧账”找原话的能力
 
-## 当前支持范围与说明
+## 仓库说明
 
-- 当前版本只支持 macOS；OpenClaw 是主要生产 harness，并基于本机 OpenClaw 2026.3.24 验证
-- Hermes adapter 当前提供 experimental production-agent support，仅覆盖 Layer0 extract 与 Layer4 recall skill
-- 使用本仓库需要本地 Python 环境
-- 本项目的任务成功率受到所用 LLM 能力影响，尤其是上下文窗口、长文本稳定性与工具调用服从性；本机主要基于 MiniMax M2.7（200k context）验证，整体表现稳定
-- 本仓库由本人和凯尔希（使用 OpenAI GPT-5.4 与 Claude Sonnet 4.6）协作开发
-- 本仓库非产品/科研级正式项目，只是个因本人兴趣而诞生的 toy project。旨在提供思路，不承诺长期维护与运营
 - Currently this repository only supports Chinese. An English version may or may not come later
+- 本仓库非产品/科研级正式项目，只是个因本人兴趣而诞生的 toy project。旨在提供思路，不承诺长期维护与运营
+- 本仓库由本人和凯尔希（使用 OpenAI GPT-5.4 与 Claude Sonnet 4.6）协作开发
+
+## 当前支持范围
+
+- 当前版本只支持 macOS 操作系统
+- 当前版本需要本地 Python 环境（基于本机 Python 3.10.8 / 3.14.3 验证）
+- 当前版本支持以下 harness 架构：   
+  - `OpenClaw` -> 主要生产harness，表现稳定（基于本机 OpenClaw 2026.3.24 验证）   
+  - `Hermes` -> 试验性harness，只有写入层与读取层的最小实现（基于本机 Hermes 0.11.0 验证）
+- 注：本仓库的任务成功率受到所用 LLM 能力影响；但基准线要求不高。本机主要基于 MiniMax M2.7（200k context）验证，整体表现稳定（任务成功率 >= 95%）
 
 ## 二创元素声明
 
@@ -28,61 +33,42 @@
 
 ![MemoquasarEterna README Hero Image](docs/assets/readme-hero.jpg)
 
-## 术词与占位符解释
+## 术语与占位符解释
 
-贯穿这个README文章，以下术语/占位符可能会高频出现：
-- `store_dir`：  
-所有记忆文件、运行日志、分析数据、任务中途产物所在的目录/文件夹。总大小会小幅波动，但长期导数为零
-- `archive_dir`：  
-所有归档文件所在的目录/文件夹。总大小会缓慢持续增长。这是最值得被备份+看管的核心数据
-- memory worker：  
-专门执行记忆总结的agent。因为记忆的每日一写/每周一压缩任务，推荐为它使用经济实惠的LLM。本项目虽然对LLM的“聪明程度”有隐形的下限需求，但对上限需求并不高
-- L2：  
-完整聊天记录原文，严禁agent直接完整读取，除非想让上下文暴毙
-- L1：  
-从L2中提炼总结出的重要决策、待办、情绪高点（比如您凶了骂了agent的对话）
-- L0：  
-从L1中原样提取的精炼总结和关键词。主要作为记忆读取时的检索信号存在
-- Layer0（Extract）：  
-专门负责提取原始聊天记录的代码层，将不同harness的格式统一为本项目的规范格式（L2格式）
-- Layer1（Write）：  
-专门负责写入日级记忆的代码层。主要过程为 调用Layer0拿到L2 -> 调用LLM拿到L1 -> 从L1提取出L0
-- Layer2（Preserve）：  
-专门负责将`store_dir`归档进`archive_dir`或反方向重构的代码层
-- Layer3（Decay）：  
-专门负责进行周度/月度衰减的代码层。主要过程为 调用Layer2做归档备份 -> 调用LLM将7个日级L1合并为1个周级L1 -> 删除日级记忆
-- Layer4（Read）：  
-专门负责从`store_dir`中检索&读取相关记忆。主要过程为 用query词检索L0（支持本地向量化） -> 去找命中日期的L1 + L2 -> 将最相关的几条信息拼凑成“人话” -> 甩回给请求者（通常是agent）
-- LayerX（Score）：  
-非生产级代码，更偏数据分析的玩具。可以告诉您与不同agents作出的决策/情绪高点的数量关于时间/日期的函数，或整体决策产出效率/情绪化程度。没什么实质作用，但属于本项目的一个有趣的副产物
+贯穿本文档，以下术语会反复出现：
+
+| 术语 | 含义 | 备注 |
+| --- | --- | --- |
+| `code_dir` | 本仓库于本地所在路径位置的根目录 | 自由定义 推荐放在 ~/ |
+| `store_dir` | 记忆、运行日志、统计数据等运行期产物根目录 | 日常会被随时写入、清理、读取的动态数据 |
+| `archive_dir` | 作为备份已被压缩归档的记忆文件根目录 | 只会被写入的、更完整的静态数据，也最值得备份保存 |
+| MW | Memory Worker。专门执行记忆写入与衰减总结的内部 agent | 必须严格与 PA 分离，推荐使用经济模型 |
+| PA | Production Agent。被记忆系统服务的真实 agent | 不同harness的agent可以无冲突地同时被服务 |
+| harness | 外部运行平台或 agent 框架 | 例如 `openclaw`、`hermes`、`codex`、`claudecode` |
+| adapter | MemoquasarEterna 对接某个 harness 的代码层 | 位于 `Adapters/{harness}/` |
+| L2 | 日级原文 transcript | 最高保真，最高上下文成本，不建议完整塞回 agent 上下文，除非想让PA暴毙死机 |
+| L1 | 从 L2 提炼出的日级结构化总结 | 日常阅读、衰减、统计的主要材料 |
+| L0 | 从 L1 提取出的轻量检索索引 | 用于 Layer4 recall、embedding 与关键词检索 |
+| Layer0 Extract | harness 原始数据到 L2 的标准化提取层 | adapter 负责平台差异，core 负责统一落盘 |
+| Layer1 Write | 每日写入主链 | L2 -> L1 -> L0 |
+| Layer2 Preserve | active memory 与 archive memory 之间的归档 / 恢复层 | 在 destructive cleanup 前建立安全副本 |
+| Layer3 Decay | 周期性减薄与长期整理层 | 负责 trim、shallow、deep 等衰减过程 |
+| Layer4 Read | 读取与召回层 | 用 query 命中 L0，再取回相关 L1 / L2 证据 |
+| LayerX Score | 非主链统计与 landmark judge | 偏分析用途，辅助观察长期趋势 |
 
 ## 危险性提示
 
-### 低危风险：Layer3 会对 active `store_dir` 执行必要的清理
-默认自动周级 Layer3 衰减任务会对 active `store_dir` 中的部分文件执行 destructive cleanup，但前提是相关内容已先被备份进 `archive_dir`。这是为了防止 active `store_dir` 无限增长，持续占用磁盘空间，并污染 Layer4 的读取与找回准确率，因此属于必要行为。
+| 风险 | 触发条件 | 默认状态 | 影响 | 建议 |
+| --- | --- | --- | --- | --- |
+| Layer3 清理 active `store_dir` | weekly decay 运行 | 默认启用 | 删除已归档的 active 日级文件，控制 active memory 规模 | 确保 `archive_dir` 可靠；恢复见 `docs/B2_layer2-restore-guide.md` |
+| 清理 MW sessions | `memory_worker_harness == "openclaw"` | 默认启用 | 删除 MW 的任务型 sessions，避免无限累积 | MW 必须是独立内部 agent，不能与 PA 混用 |
+| 生产 agent 原始 sessions 文件衰减 | `production_agents[*].harness == "openclaw"` 且手动开启 `sessions_registry_maintenance.session_files_decay` | 默认关闭 | 删除已归档的 OpenClaw 原始 session 文件 | 只有完全理解后果时才手动启用 |
 
-这类操作本质上仍然是带删除性质的危险操作，因此在此明确告知。但在正常使用条件下，您通常无需担心，也无需额外采取行动。
+补充说明：
 
-如果您希望从归档中恢复某天记忆，请阅读：
-- `docs/B2_layer2-restore-guide.md`
-并使用入口：
-- `Core/Layer2_Preserve/ENTRY_LAYER2_restore.py`
-
-### 中危风险：`memory_worker_harness == openclaw` 时会清理 memory worker 的 sessions
-当 `memory_worker_harness == openclaw` 时，Layer1 / Layer3 任务开始前会先对 memory worker agent 的 `agent/{memory_worker_agentId}/sessions/` 做清理。这是为了防止任务型 LLM 调用记录无限累积。
-
-这一默认行为成立的前提是：memory worker agent 被设计成后台一次性调用、用后即焚，因此它必须是独立的、非生产级 agent，而且不能被安排任何其他任务。这也是文档中一再强调必须为 memory worker 单独准备专用 agent 的原因。
-
-如果您严格遵守了这一限制条件，则通常无需担心，也无需采取任何行动。反之，如果您把生产 agent 错用为 memory worker，就存在整个对话丢失的风险。
-
-### 高危风险：可选启用生产 agent 原始 sessions 文件衰减
-当某个 `production_agents[*].harness == openclaw` 时，系统还提供一项默认关闭的高级功能：将每个 OpenClaw 生产 agent 已自动归档的原始会话文件，从 `agent/{agentId}/sessions/` 中进一步清除。它的目的，是从项目外部协助控制 OpenClaw 会话内存的无限膨胀。
-
-启用方式：
-- 打开 `{code_dir}/Adapters/openclaw/OpenclawConfig.json`
-- 将 `sessions_registry_maintenance.session_files_decay` 设置为 `true`
-
-注意：这是一项高危操作，项目默认关闭。只有在您已经充分理解其含义、边界与潜在后果时，才应手动启用；启用决策需自行承担。
+- Layer3 的清理建立在 Layer2 已归档的前提上，是为了防止 active `store_dir` 无限增长并污染 Layer4 召回。
+- 如果误把 PA 配成 MW，OpenClaw MW cleanup 可能清掉真实对话 sessions。
+- 生产 agent 原始 sessions 文件衰减是高危高级功能。启用方式是编辑 `{code_dir}/Adapters/openclaw/OpenclawConfig.json`，将 `sessions_registry_maintenance.session_files_decay` 设置为 `true`。
 
 ---
 
@@ -154,18 +140,16 @@ cd {code_dir}
 首次安装时，`Installation/INSTALL.py` 会在缺少本地配置时，从模板生成：
 
 - `OverallConfig.json`
-- `Adapters/openclaw/OpenclawConfig.json`
-- `Adapters/hermes/HermesConfig.json`
+- `Adapters/{harness}/{Harness}Config.json`
 
 也可以在安装前手动复制：
 
 ```bash
 cp OverallConfig-template.json OverallConfig.json
-cp Adapters/openclaw/OpenclawConfig-template.json Adapters/openclaw/OpenclawConfig.json
-cp Adapters/hermes/HermesConfig-template.json Adapters/hermes/HermesConfig.json
+cp Adapters/{harness}/{Harness}Config-template.json Adapters/{harness}/{Harness}Config.json
 ```
 
-然后编辑本地配置文件。`Config-template.json` 由仓库跟踪，`Config.json` 是本机私有配置，不应提交。
+然后编辑本地配置文件。仓库跟踪 `*-template.json`，本地实际运行读取不带 `-template` 的配置文件。请不要把本机私有配置提交进 git。
 
 安装前至少应明确填写：
 
@@ -183,7 +167,7 @@ cp Adapters/hermes/HermesConfig-template.json Adapters/hermes/HermesConfig.json
 ### 3. 执行安装
 
 ```bash
-python Installation/INSTALL.py
+python3 Installation/INSTALL.py
 ```
 
 如果 `memory_worker_harness` 或某个 `production_agents[*].harness` 使用 `openclaw`，安装过程中还会执行 OpenClaw harness-specific prerequisites，并在需要时要求您：
@@ -197,52 +181,19 @@ python Installation/INSTALL.py
 
 ---
 
-## 顶层命令
+## 当前主要 harness
 
-### 安装
+| Harness | 状态 | MW | PA | Layer0 Extract | Layer1 Write | Layer2 Preserve | Layer3 Decay | Layer4 Read |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `openclaw` | production | yes | yes | yes | yes | yes | yes | yes |
+| `hermes` | experimental | no | yes | yes | yes | no | no | yes |
 
-```bash
-python Installation/INSTALL.py
-```
+更多说明：
 
-### 卸载
-
-```bash
-python Installation/UNINSTALL.py
-```
-
-### 刷新
-
-```bash
-python Installation/REFRESH.py
-```
-
-`REFRESH.py` 会：
-
-1. 优先依据最新 install snapshot 做 uninstall
-2. 在安全条件下迁移旧的 `store_dir` / `archive_dir`
-3. 按当前 config 重新 install
-
----
-
-## install snapshot
-
-每次成功的顶层 install 都会在以下目录写入 snapshot：
-
-```text
-Installation/.install_logs/
-```
-
-这些 snapshot 会记录：
-
-- 安装上下文
-- config 快照
-- resolved install facts
-- core / harness install 结果
-
-默认只保留最近 3 份。
-
-`UNINSTALL.py` 与 `REFRESH.py` 会优先依据最新 snapshot 回滚，而不是只依赖当前 config。
+- `Adapters/openclaw/README.md`
+- `docs/C3_adapter-openclaw.md`
+- `Adapters/hermes/README.md`
+- `docs/C4_adapter-hermes.md`
 
 ---
 
@@ -291,102 +242,14 @@ Installation/.install_logs/
 
 ---
 
-## 当前主要安装链路
-
-顶层 `INSTALL.py` 当前按以下顺序编排：
-
-1. Core prerequisites
-2. Harness memory worker prerequisites
-3. Harness production agent prerequisites
-4. Core install
-5. Harness memory worker install
-6. Harness production agent install
-
-顶层 `UNINSTALL.py` 当前按以下顺序编排：
-
-1. Core uninstall
-2. Harness memory worker uninstall
-3. Harness production agent uninstall
-
-这使得：
-
-- 项目级逻辑留在 `Installation/Core/`
-- harness-specific 逻辑留在 `Adapters/{harness}/Installation/`
-- 顶层入口只负责编排与用户可读输出
-
----
-
-## 当前主要 harness
-
-### OpenClaw
-
-当前 `openclaw` adapter 已接入以下固定能力：
-
-- `ensure_config`
-- `memory_worker.call_llm`
-- `memory_worker.clean_runtime`
-- `memory_worker.prerequisites`
-- `memory_worker.install`
-- `memory_worker.uninstall`
-- `production_agent.extract`
-- `production_agent.preserve`
-- `production_agent.decay`
-- `production_agent.prerequisites`
-- `production_agent.install`
-- `production_agent.uninstall`
-
-对应目录位于：
-
-```text
-Adapters/openclaw/
-```
-
-更多说明见：
-
-- `Adapters/openclaw/README.md`
-- `docs/C3_adapter-openclaw.md`
-
-### Hermes
-
-当前 `hermes` adapter 是 experimental adapter，已接入以下能力：
-
-- `ensure_config`
-- `production_agent.extract`
-- `production_agent.prerequisites`
-- `production_agent.install`
-- `production_agent.uninstall`
-- Layer4 recall skill：`memoquasar-memory-recall`
-
-当前未接入：
-
-- `memory_worker.call_llm`
-- `memory_worker.clean_runtime`
-- `production_agent.preserve`
-- `production_agent.decay`
-
-对应目录位于：
-
-```text
-Adapters/hermes/
-```
-
-更多说明见：
-
-- `Adapters/hermes/README.md`
-- `docs/C4_adapter-hermes.md`
-
----
-
 ## 开发与维护提示
 
-- 修改安装流程前，优先同步更新：
-  - `docs/A1_installation-guide.md`
-  - `docs/A2_overall-config-reference.md`
-- 修改 connector 固定接口前，优先同步更新：
-  - `docs/C2_connector-contract.md`
-- 修改 OpenClaw adapter 结构前，优先同步更新：
-  - `docs/C3_adapter-openclaw.md`
-- 修改 Hermes adapter 结构前，优先同步更新：
-  - `docs/C4_adapter-hermes.md`
+| 改动内容 | 优先同步文档 |
+| --- | --- |
+| 安装流程 / config bootstrap | `docs/A1_installation-guide.md`、`docs/A2_overall-config-reference.md` |
+| connector 固定接口 | `docs/C2_connector-contract.md` |
+| OpenClaw adapter | `docs/C3_adapter-openclaw.md` |
+| Hermes adapter | `docs/C4_adapter-hermes.md` |
+| memory schema / layer 关系 | `docs/C1_architecture.md` |
 
 如需理解整体设计，请先从 `docs/C1_architecture.md` 开始。
