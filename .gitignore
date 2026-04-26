@@ -7,3 +7,4 @@ Installation/example-openclaw.json
 Adapters/openclaw/Sessions_Watch/Registries/
 OverallConfig.json
 Adapters/openclaw/OpenclawConfig.json
+Adapters/hermes/HermesConfig.json

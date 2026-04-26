@@ -1,0 +1,5 @@
+{
+  "schema_version": "1.0",
+  "profiles_root": "~/.hermes/profiles",
+  "state_db_name": "state.db"
+}
