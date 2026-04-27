@@ -5,10 +5,66 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd)"
 OVERALL_CONFIG_PATH="${REPO_ROOT}/OverallConfig.json"
 EXTENSIONS_ROOT="${OPENCLAW_EXTENSIONS_PATH:-$HOME/.openclaw/extensions}"
-PYTHON_BIN="${PYTHON_BIN:-python3}"
+ENV_PYTHON_BIN="${PYTHON_BIN:-}"
 
 if [[ ! -f "${OVERALL_CONFIG_PATH}" ]]; then
   echo "ERROR: OverallConfig.json not found at: ${OVERALL_CONFIG_PATH}" >&2
+  exit 1
+fi
+
+python_is_usable() {
+  local candidate="$1"
+  [[ -n "${candidate}" ]] || return 1
+  command -v "${candidate}" >/dev/null 2>&1 || return 1
+  "${candidate}" - <<'PY' >/dev/null 2>&1
+import json
+PY
+}
+
+find_json_reader() {
+  local candidate
+  for candidate in python3 /usr/bin/python3 "${ENV_PYTHON_BIN}"; do
+    if python_is_usable "${candidate}"; then
+      printf '%s\n' "${candidate}"
+      return 0
+    fi
+  done
+  return 1
+}
+
+JSON_READER="$(find_json_reader || true)"
+if [[ -z "${JSON_READER}" ]]; then
+  echo "ERROR: cannot find a usable python3 to read OverallConfig.json" >&2
+  exit 1
+fi
+
+CONFIG_PYTHON_BIN="$("${JSON_READER}" - <<'PY' "${OVERALL_CONFIG_PATH}"
+import json, sys
+from pathlib import Path
+cfg = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
+value = cfg.get('python_bin_path')
+print(value.strip() if isinstance(value, str) else '')
+PY
+)"
+
+if python_is_usable "${CONFIG_PYTHON_BIN}"; then
+  PYTHON_BIN="${CONFIG_PYTHON_BIN}"
+elif [[ -n "${CONFIG_PYTHON_BIN}" ]]; then
+  echo "WARNING: OverallConfig.json.python_bin_path is not usable; falling back." >&2
+  if python_is_usable "${ENV_PYTHON_BIN}"; then
+    PYTHON_BIN="${ENV_PYTHON_BIN}"
+  elif python_is_usable python3; then
+    PYTHON_BIN="python3"
+  else
+    echo "ERROR: cannot find a usable python3 for OpenClaw read plugin installation" >&2
+    exit 1
+  fi
+elif python_is_usable "${ENV_PYTHON_BIN}"; then
+  PYTHON_BIN="${ENV_PYTHON_BIN}"
+elif python_is_usable python3; then
+  PYTHON_BIN="python3"
+else
+  echo "ERROR: cannot find a usable python3 for OpenClaw read plugin installation" >&2
   exit 1
 fi
 
