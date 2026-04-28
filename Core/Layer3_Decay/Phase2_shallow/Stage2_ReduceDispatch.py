@@ -332,7 +332,7 @@ def build_stage2_reduce_prompt(job: Stage2ReduceJob, *, worker_reduce_view: list
    - `window_date_end`: str，固定写 `{window_date_end}`
    - `week_mood`: str，综合整周整体情绪，<=40字
    - `summary`: str，整周核心摘要，<=200字
-   - `tags`: list[str]，去重后保留 5-12 个检索价值最高标签
+   - `tags`: list[str]，去重后保留 1-12 个检索价值最高标签。tags 是顶层检索索引，宁缺毋滥，优先保留高信噪比关键词
    - `topics`: list[{{name, detail}}]，合并去重。≤20项；name≤25字, detail≤150字（描述该主题核心内容、关键进展或结论；重复主题需合并）
    - `decisions`: list[str]，合并去重。≤20项；每项≤120字，包含决策背景（为什么）和结果（改成了什么/确定了什么）；重复决策需合并
    - `todos`: list[str]， 合并去重。≤15项；每项≤120字；包含足够上下文（关于什么、触发原因）；重复待办需合并；剔除本周已完成事项

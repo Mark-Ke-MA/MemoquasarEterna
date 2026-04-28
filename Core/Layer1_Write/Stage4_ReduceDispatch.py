@@ -425,12 +425,12 @@ def build_stage4_reduce_prompt(job: Stage4ReduceJob, *, input_payloads: list[dic
 6. JSON结果 必须是**严格合法的JSON格式**，字符串内容里不要出现未转义的半角双引号 `"`；如需表达引号内容，请改写为中文表述、改用单引号含义表达，或确保 JSON 转义正确。
 7. 你要做的是跨 chunk **合并 + 去重 + 统一措辞 + 保留关键信息**，不能把多个 chunk 结果机械拼接，也不能保留明显重复项。
 8. JSON结果 里必须包含且**只**包含以下字段：
-   - `topics`: list[{{name, detail}}], 合并去重。正常情况下 4-8项。name≤20字, detail≤120字（描述该主题核心内容、关键进展或结论；重复主题需合并）
+   - `topics`: list[{{name, detail}}], 合并去重。正常情况下 1-8项。name≤20字, detail≤120字（描述该主题核心内容、关键进展或结论；重复主题需合并）
    - `decisions`: list[str], 合并去重。每项≤100字，包含决策背景（为什么）和结果（改成了什么/确定了什么）；重复决策需合并
    - `todos`: list[str], 合并去重。每项≤100字，包含足够上下文（关于什么、触发原因）；重复待办需合并
    - `summary`: str, ≤120字, 概括整天核心工作、关键决策和重要结论（不是拼接 chunk summary）
    - `key_items`: list[{{type, desc}}], type限定: milestone/bug_fix/config_change/decision/incident/question，合并去重。desc≤150字，完整描述事件背景、过程和影响；重复事件需合并
-   - `tags`: list[str], 合并去重，保留5-10个最有检索价值的
+   - `tags`: list[str], 合并去重，保留1-10个最有检索价值的。tags 是顶层检索索引，宁缺毋滥，优先保留高信噪比关键词
    - `day_mood`: str, 综合所有 chunk 情绪，写一句≤20字整体走向（无明显信号则空字符串）
    - `emotional_peaks`: list[{{turn, emotion, intensity, context}}]，合并去重。turn 为 int；intensity 为 1-5 的整数；context≤100字
    - `source_turns`: list[int]，支撑整日提取结果的关键 turn 编号，去重后输出
