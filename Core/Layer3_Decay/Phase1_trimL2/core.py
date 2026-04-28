@@ -26,7 +26,8 @@ def trim_l2_boundary_date(target_week: str, repo_root=None):
     if 'trimL2_interval' not in layer3_decay:
         raise KeyError('OverallConfig.json.layer3_decay 缺少 trimL2_interval')
     trim_interval = int(layer3_decay.get('trimL2_interval') or 0)
-    return monday_of_iso_week(target_week) - timedelta(days=7 * trim_interval + 1)
+    cutoff_monday = monday_of_iso_week(target_week) - timedelta(days=7 * trim_interval)
+    return cutoff_monday + timedelta(days=6)
 
 
 __all__ = [

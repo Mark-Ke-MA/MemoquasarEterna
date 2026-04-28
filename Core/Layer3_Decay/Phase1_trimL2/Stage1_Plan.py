@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from Core.Layer3_Decay.core import trim_l2_boundary_date
+from Core.Layer3_Decay.Phase1_trimL2.core import trim_l2_boundary_date
 from Core.Layer3_Decay.shared import LoadConfig, load_json_file, month_dirs_under, monday_of_iso_week, parse_iso_date, selected_agents, surface_root
 
 

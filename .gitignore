@@ -2,6 +2,8 @@ __pycache__/
 **/__pycache__/
 *.pyc
 *.pyo
+.DS_Store
+**/.DS_Store
 Installation/.install_logs/
 Installation/example-openclaw.json
 Adapters/openclaw/Sessions_Watch/Registries/
