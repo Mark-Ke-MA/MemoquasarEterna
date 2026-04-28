@@ -160,7 +160,10 @@ def fetch_openclaw_layer0_input(agent_id: str, target_date_str: str, window_star
         needs_alert = current_session_id not in [s[0] for s in sessions_to_process]
         current_session_path = os.path.join(paths['sessions_path'], f'{current_session_id}.jsonl')
         if current_session_id not in [s[0] for s in sessions_to_process]:
-            sessions_to_process.append((current_session_id, current_session_path))
+            if os.path.exists(current_session_path):
+                sessions_to_process.append((current_session_id, current_session_path))
+            else:
+                dbg(f'跳过未落盘 current session: {current_session_id[:8]} <- {current_session_path}')
 
     alert_msg = None
     if needs_alert and session_alert_enabled:

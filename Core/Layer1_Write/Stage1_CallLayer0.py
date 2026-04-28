@@ -154,20 +154,6 @@ def _parse_layer0_stdout_payload(stdout_text: str) -> dict[str, Any] | None:
     return payload if isinstance(payload, dict) else None
 
 
-def _nocontent_marker_path(l1_path: str | Path) -> Path:
-    file_path = Path(l1_path)
-    name = file_path.name
-    if name.endswith('_l1.json'):
-        return file_path.with_name(name[:-8] + '.nocontent')
-    return file_path.with_suffix(file_path.suffix + '.nocontent')
-
-
-def _write_nocontent_marker(l1_path: str | Path, *, target_date: str):
-    marker_path = _nocontent_marker_path(l1_path)
-    marker_path.parent.mkdir(parents=True, exist_ok=True)
-    marker_path.write_text(f'nocontent on {target_date}\n', encoding='utf-8')
-
-
 def _parse_selected_agents(agent: str | None, all_agents: list[str]) -> tuple[list[str], str]:
     if agent is None or not str(agent).strip():
         return list(all_agents), 'all'
@@ -397,7 +383,6 @@ def run_stage1(*, target_date: str, repo_root: str | None = None, agent: str | N
         conversation_count = 0
         user_turn_count = 0
         has_conversation = False
-        nocontent_early_skip = False
         extraction_ready_path = Path(artifact_paths['staging_ready_path'])
         if extraction_ready_path.exists():
             try:
@@ -416,13 +401,6 @@ def run_stage1(*, target_date: str, repo_root: str | None = None, agent: str | N
             has_conversation = False
             conversation_count = 0
             user_turn_count = 0
-        elif has_conversation and user_turn_count <= 1:
-            has_conversation = False
-            nocontent_early_skip = True
-            l1_path = Path(artifact_paths['l1_path'])
-            if l1_path.exists():
-                l1_path.unlink()
-            _write_nocontent_marker(artifact_paths['l1_path'], target_date=target_date)
         agent_result = {
             'agent_id': agent_id,
             'command': cmd,
@@ -430,7 +408,7 @@ def run_stage1(*, target_date: str, repo_root: str | None = None, agent: str | N
             'has_conversation': has_conversation,
             'conversation_excerpt_count': conversation_count,
             'user_turn_count': user_turn_count,
-            'skip_reason': '无对话' if no_conversation_today else ('nocontent:user_turns<=1' if nocontent_early_skip else None),
+            'skip_reason': '无对话' if no_conversation_today else None,
             'l1_path': artifact_paths['l1_path'],
             'l2_path': artifact_paths['l2_path'],
         }
@@ -446,7 +424,7 @@ def run_stage1(*, target_date: str, repo_root: str | None = None, agent: str | N
                 'returncode': proc.returncode,
                 'has_conversation': has_conversation,
                 'user_turn_count': user_turn_count,
-                'skip_reason': '无对话' if no_conversation_today else ('nocontent:user_turns<=1' if nocontent_early_skip else None),
+                'skip_reason': '无对话' if no_conversation_today else None,
             })
             if has_conversation and agent_id not in stage1.get('agents_with_conversation', []):
                 stage1['agents_with_conversation'] = stage1.get('agents_with_conversation', []) + [agent_id]

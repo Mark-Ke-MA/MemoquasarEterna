@@ -120,7 +120,6 @@ def build_write_bundle(*, agent_id: str, target_date_str: str, merged: dict, ses
         '_l1_path': l1_path,
         '_l2_path': l2_path,
         'stats': payload['stats'],
-        'memory_signal': 'normal',
         'summary': None,
         'tags': None,
         'day_mood': None,
@@ -154,5 +153,4 @@ def build_write_bundle(*, agent_id: str, target_date_str: str, merged: dict, ses
         'staging_ready': staging_ready,
         'payload': payload,
     }
-
 

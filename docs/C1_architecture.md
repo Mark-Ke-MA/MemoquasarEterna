@@ -84,7 +84,7 @@ Core/
 
 ```json
 {
-  "schema_version": "3.1",
+  "schema_version": "3.2",
   "date": "YYYY-MM-DD",
   "agent_id": "<agentId>",
   "status": "...",
@@ -121,7 +121,6 @@ Core/
   "status": {...},
   "generated_at": "YYYY-MM-DDTHH:MM:SSZ",
   "stats": {...},
-  "memory_signal": "low|normal",
   "summary": "...",
   "tags": ["..."],
   "day_mood": "...",
@@ -134,7 +133,7 @@ Core/
 }
 ```
 
-要点：L1 由 Layer1 Map / Reduce 生成，Stage5 写回正式 surface 文件；`memory_signal="low"` 表示当天缺乏可沉淀内容；`topics` / `decisions` / `todos` / `key_items` 是日常阅读和 vague recall 的主要材料；reduce 产生的 `source_turns` 最终写入 `_compress_hints`。
+要点：L1 由 Layer1 Map / Reduce 生成，Stage5 写回正式 surface 文件；`topics` / `decisions` / `todos` / `key_items` 是日常阅读和 vague recall 的主要材料；reduce 产生的 `source_turns` 最终写入 `_compress_hints`。
 
 ### L0
 

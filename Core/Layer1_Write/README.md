@@ -64,7 +64,6 @@ Layer1 的核心输出包括：
 内容：
 
 - 当天结构化记忆摘要
-- `memory_signal`
 - `summary`
 - `tags`
 - `day_mood`
@@ -192,8 +191,6 @@ Layer1 当前由 9 个 stage 构成。
 ### Stage5 — Finalize
 
 - 把 reduce 结果正式写回 surface L1
-- 处理 `memory_signal=normal|low`
-- 若为 `low`，会创建 `.nocontent` 并同步移除后续任务
 
 ### Stage6 — Index update
 

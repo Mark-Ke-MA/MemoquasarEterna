@@ -3,10 +3,8 @@
 
 职责：
 - 读取 Stage4 成功 agent 的 reduced_results.json
-- normal 分支：把 reduce 结果写回正式 L1
-- low 分支：删除正式 L1，保留 L2，并创建 .nocontent 标记
+- 把 reduce 结果写回正式 L1
 - 回写 plan.json 中的 Stage5 状态
-- 对 low agent 从 Stage6 / Stage7 中移除
 """
 from __future__ import annotations
 
@@ -21,9 +19,7 @@ from Core.Layer1_Write.json_repair import load_json_with_repair
 from Core.Layer1_Write.shared import LoadConfig, load_json_file, write_json_atomic
 
 
-LOW_SIGNAL_SUMMARY = '当天有对话，但缺乏可沉淀的实质内容，不生成正式记忆。'
 L1_FILLABLE_FIELDS = (
-    'memory_signal',
     'summary',
     'tags',
     'day_mood',
@@ -52,18 +48,6 @@ def _load_plan(repo_root: str | Path | None = None) -> dict[str, Any]:
 
 def _plan_write_path(repo_root: str | Path | None = None) -> Path:
     return _plan_path(repo_root)
-
-
-def _touch_text_file(path: str | Path, text: str) -> None:
-    file_path = Path(path)
-    file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_text(text, encoding='utf-8')
-
-
-def _remove_file_if_exists(path: str | Path) -> None:
-    file_path = Path(path)
-    if file_path.exists():
-        file_path.unlink()
 
 
 def _nocontent_path_from_l1_path(l1_path: str | Path) -> Path:
@@ -111,13 +95,6 @@ def _stage5_output_lookup(plan: dict[str, Any]) -> dict[str, dict[str, Any]]:
     }
 
 
-def _filter_following_tasks(tasks: list[dict[str, Any]], agent_set_to_remove: set[str]) -> list[dict[str, Any]]:
-    return [
-        task for task in tasks
-        if isinstance(task, dict) and str(task.get('agent_id', '') or '') not in agent_set_to_remove
-    ]
-
-
 def _apply_reduce_to_l1(l1_payload: dict[str, Any], reduce_payload: dict[str, Any]) -> dict[str, Any]:
     updated = dict(l1_payload)
     for field in L1_FILLABLE_FIELDS:
@@ -132,26 +109,7 @@ def _apply_reduce_to_l1(l1_payload: dict[str, Any], reduce_payload: dict[str, An
 
 def _process_single_agent(*, agent_id: str, reduce_output_path: str, l1_path: str) -> dict[str, Any]:
     reduce_payload = _load_json_dict(reduce_output_path)
-    memory_signal = str(reduce_payload.get('memory_signal', '') or '')
-    if memory_signal not in {'low', 'normal'}:
-        raise ValueError(f'{agent_id} 的 memory_signal 非法: {memory_signal}')
-
     nocontent_path = _nocontent_path_from_l1_path(l1_path)
-
-    if memory_signal == 'low':
-        _remove_file_if_exists(l1_path)
-        _touch_text_file(
-            nocontent_path,
-            f'nocontent on {Path(l1_path).stem.replace("_l1", "")}\nsummary: {LOW_SIGNAL_SUMMARY}\n',
-        )
-        return {
-            'agent_id': agent_id,
-            'status': 'nocontent',
-            'memory_signal': 'low',
-            'reduce_output_path': reduce_output_path,
-            'l1_path': l1_path,
-            'nocontent_path': str(nocontent_path),
-        }
 
     l1_payload = _load_json_dict(l1_path)
     updated_l1 = _apply_reduce_to_l1(l1_payload, reduce_payload)
@@ -161,7 +119,6 @@ def _process_single_agent(*, agent_id: str, reduce_output_path: str, l1_path: st
     return {
         'agent_id': agent_id,
         'status': 'completed',
-        'memory_signal': 'normal',
         'reduce_output_path': reduce_output_path,
         'l1_path': l1_path,
         'nocontent_path': None,
@@ -183,7 +140,6 @@ def run_stage5(repo_root: str | Path | None = None) -> dict[str, Any]:
 
     results: list[dict[str, Any]] = []
     failed_agents: list[str] = []
-    low_agents: list[str] = []
 
     for agent_id in succeed_agents:
         output_info = stage5_output_lookup.get(agent_id) or {}
@@ -208,8 +164,6 @@ def run_stage5(repo_root: str | Path | None = None) -> dict[str, Any]:
                 l1_path=l1_path,
             )
             results.append(result)
-            if result.get('memory_signal') == 'low':
-                low_agents.append(agent_id)
         except Exception as exc:  # noqa: BLE001
             results.append({
                 'agent_id': agent_id,
@@ -220,28 +174,10 @@ def run_stage5(repo_root: str | Path | None = None) -> dict[str, Any]:
             })
             failed_agents.append(agent_id)
 
-    low_agent_set = set(low_agents)
-    if low_agent_set:
-        stage6 = root.setdefault('stage6', {})
-        stage6_tasks = stage6.get('tasks') or []
-        if isinstance(stage6_tasks, list):
-            stage6['tasks'] = _filter_following_tasks(stage6_tasks, low_agent_set)
-
-        stage7 = root.setdefault('stage7', {})
-        stage7_tasks = stage7.get('tasks') or []
-        if isinstance(stage7_tasks, list):
-            stage7['tasks'] = _filter_following_tasks(stage7_tasks, low_agent_set)
-
-        stage8 = root.setdefault('stage8', {})
-        stage8_tasks = stage8.get('tasks') or []
-        if isinstance(stage8_tasks, list):
-            stage8['tasks'] = _filter_following_tasks(stage8_tasks, low_agent_set)
-
     stage5['status'] = 'completed' if not failed_agents else 'failed'
     stage5['results'] = results
     stage5['succeed_agents'] = [agent for agent in succeed_agents if agent not in failed_agents]
     stage5['failed_agents'] = failed_agents
-    stage5['low_agents'] = low_agents
     root.setdefault('run_meta', {})['updated_at'] = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
 
     write_json_atomic(_plan_write_path(repo_root), plan)
@@ -252,7 +188,6 @@ def run_stage5(repo_root: str | Path | None = None) -> dict[str, Any]:
         'results': results,
         'succeed_agents': stage5.get('succeed_agents', []),
         'failed_agents': failed_agents,
-        'low_agents': low_agents,
     }
 
 

@@ -149,7 +149,6 @@ def _run_single_stage(stage_name: str, *, target_date: str, repo_root: str | Non
             'note': stage_result.get('note'),
             'failed_agents': stage_result.get('failed_agents', []),
             'succeed_agents': stage_result.get('succeed_agents', []),
-            'low_agents': stage_result.get('low_agents', []),
         }
     if stage_name == 'Stage6':
         stage_result = run_stage6(repo_root=repo_root)
@@ -365,7 +364,6 @@ def _run_default_pipeline(*, target_date: str, repo_root: str | None, agent: str
             'results': [],
             'failed_agents': [],
             'succeed_agents': [],
-            'low_agents': [],
         }
         pipeline_failed = True
 

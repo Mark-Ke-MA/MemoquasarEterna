@@ -87,7 +87,7 @@ def merge_l1(existing: dict | None, new: dict) -> dict:
         merged['stats'][key] = int(existing.get('stats', {}).get(key, 0)) + int(new.get('stats', {}).get(key, 0))
     merged['generated_at'] = new.get('generated_at')
     merged['status'] = dict(existing.get('status', {})) if isinstance(existing.get('status'), dict) else dict(new.get('status', {}))
-    for key in ('memory_signal', 'summary', 'tags', 'day_mood', 'topics', 'decisions', 'todos', 'key_items', 'emotional_peaks', '_compress_hints'):
+    for key in ('summary', 'tags', 'day_mood', 'topics', 'decisions', 'todos', 'key_items', 'emotional_peaks', '_compress_hints'):
         if existing.get(key) is not None:
             merged[key] = existing.get(key)
     return merged

@@ -37,7 +37,6 @@ call_LLM = get_required_connector_callable(_connector, 'memory_worker', 'call_ll
 
 
 EXPECTED_REDUCE_KEYS = (
-    'memory_signal',
     'topics',
     'decisions',
     'todos',
@@ -50,10 +49,6 @@ EXPECTED_REDUCE_KEYS = (
 )
 
 ALLOWED_KEY_ITEM_TYPES = {'milestone', 'bug_fix', 'config_change', 'decision', 'incident', 'question'}
-ALLOWED_MEMORY_SIGNAL_VALUES = {'low', 'normal'}
-LOW_SIGNAL_MAX_TURNS = 8
-LOW_SIGNAL_SUMMARY = '当天有对话，但缺乏可沉淀的实质内容，不生成正式记忆。'
-
 
 @dataclass(frozen=True, slots=True)
 class Stage4ReduceJob:
@@ -181,30 +176,6 @@ def _corresponding_l2_chunk_path(l1_chunk_path: str | Path) -> Path:
     return Path(str(l1_chunk_path).replace('l1_chunk_', 'l2_chunk_'))
 
 
-def _low_signal_context(job: Stage4ReduceJob) -> dict[str, int]:
-    total_chunks = len(job.input_paths)
-    total_turns = 0
-    user_turns = 0
-    if total_chunks == 1:
-        l2_chunk_path = _corresponding_l2_chunk_path(job.input_paths[0])
-        if l2_chunk_path.exists():
-            try:
-                l2_chunk_payload = load_json_file(l2_chunk_path)
-                fragments = l2_chunk_payload.get('input', {}).get('fragments', []) or []
-                total_turns = int(l2_chunk_payload.get('input', {}).get('fragment_count', 0) or 0)
-                if isinstance(fragments, list):
-                    user_turns = sum(1 for frag in fragments if isinstance(frag, dict) and str(frag.get('role', '')).strip().lower() == 'user')
-            except Exception:  # noqa: BLE001
-                total_turns = 0
-                user_turns = 0
-    return {
-        'total_chunks': total_chunks,
-        'total_turns': total_turns,
-        'user_turns': user_turns,
-        'low_signal_max_turns': LOW_SIGNAL_MAX_TURNS,
-    }
-
-
 def _parse_and_validate_reduce_output(path: str | Path) -> tuple[bool, dict[str, Any] | None]:
     ok, payload, _repaired = load_json_with_repair(path)
     if not ok:
@@ -213,9 +184,6 @@ def _parse_and_validate_reduce_output(path: str | Path) -> tuple[bool, dict[str,
     if not isinstance(payload, dict):
         return False, None
     if set(payload.keys()) != set(EXPECTED_REDUCE_KEYS):
-        return False, payload
-    memory_signal = payload.get('memory_signal')
-    if not isinstance(memory_signal, str) or memory_signal not in ALLOWED_MEMORY_SIGNAL_VALUES:
         return False, payload
     if not _is_topics(payload.get('topics')):
         return False, payload
@@ -443,7 +411,6 @@ def _build_worker_reduce_view(job: Stage4ReduceJob, input_payloads: list[dict[st
 def build_stage4_reduce_prompt(job: Stage4ReduceJob, *, input_payloads: list[dict[str, Any]]) -> str:
     """生成单个 reduce job 的 prompt。"""
     worker_reduce_view_json = json.dumps(_build_worker_reduce_view(job, input_payloads), ensure_ascii=False, indent=2)
-    low_signal_context = _low_signal_context(job)
     return f"""你是 Reduce Worker。只做一件事：分析多个 chunk 的局部结构化结果，并合并为整日级别的最终 JSON结果，然后写到指定文件。
 
 严格约束：
@@ -457,20 +424,8 @@ def build_stage4_reduce_prompt(job: Stage4ReduceJob, *, input_payloads: list[dic
 5. 写完后立即结束任务；**不要把 JSON结果 当作文本回复输出**，不要输出解释、不要输出 markdown、不要输出代码块、不要再次调用任何工具。
 6. JSON结果 必须是**严格合法的JSON格式**，字符串内容里不要出现未转义的半角双引号 `"`；如需表达引号内容，请改写为中文表述、改用单引号含义表达，或确保 JSON 转义正确。
 7. 你要做的是跨 chunk **合并 + 去重 + 统一措辞 + 保留关键信息**，不能把多个 chunk 结果机械拼接，也不能保留明显重复项。
-8. 先判断 `memory_signal`：只能输出 `normal` 或 `low`。
-   - 默认输出 `memory_signal = "normal"`。
-   - 如果当前 user 发言数严格等于 0（当前为 `{low_signal_context['user_turns']}`），则必须输出 `memory_signal = "low"`。
-   - 只有在以下条件同时满足时，才允许输出 `memory_signal = "low"`：
-     - 单个 chunk（当前为 `{low_signal_context['total_chunks']}`）
-     - 总 turn 数不超过给定上限（当前为 `{low_signal_context['total_turns']}` / 上限 `{low_signal_context['low_signal_max_turns']}`）
-     - 且内容明显缺乏可沉淀的实质信息
-   - 如果输出 `memory_signal = "low"`，则：
-     - `summary` 必须**固定写成**：`{LOW_SIGNAL_SUMMARY}`
-     - 除 `summary` 外，其余字段必须全部置空：`topics=[]`、`decisions=[]`、`todos=[]`、`key_items=[]`、`tags=[]`、`day_mood=""`、`emotional_peaks=[]`、`source_turns=[]`
-   - 只要不完全满足以上条件，就必须输出 `memory_signal = "normal"`，并按正常 reduce 方式填写其余字段。
-9. JSON结果 里必须包含且**只**包含以下字段：
-   - `memory_signal`: str, 只能是 `low` 或 `normal`
-   - `topics`: list[{{name, detail}}], 合并去重。正常情况下 4-8项；若 `memory_signal="low"` 则必须为空列表。name≤20字, detail≤120字（描述该主题核心内容、关键进展或结论；重复主题需合并）
+8. JSON结果 里必须包含且**只**包含以下字段：
+   - `topics`: list[{{name, detail}}], 合并去重。正常情况下 4-8项。name≤20字, detail≤120字（描述该主题核心内容、关键进展或结论；重复主题需合并）
    - `decisions`: list[str], 合并去重。每项≤100字，包含决策背景（为什么）和结果（改成了什么/确定了什么）；重复决策需合并
    - `todos`: list[str], 合并去重。每项≤100字，包含足够上下文（关于什么、触发原因）；重复待办需合并
    - `summary`: str, ≤120字, 概括整天核心工作、关键决策和重要结论（不是拼接 chunk summary）
