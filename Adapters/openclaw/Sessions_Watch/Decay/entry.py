@@ -242,12 +242,18 @@ def _prune_active_registry(active_registry: dict[str, Any], target_dates: set[st
 
 
 def _trajectory_sidecars_for_session_file(path: Path) -> list[Path]:
-    if path.suffix != '.jsonl':
+    name = path.name
+    session_id = None
+    if name.endswith('.jsonl'):
+        session_id = name[:-len('.jsonl')]
+    elif '.jsonl.reset.' in name:
+        session_id = name.split('.jsonl.reset.', 1)[0]
+    if not session_id:
         return []
-    base = path.with_suffix('')
     return [
-        base.with_name(f'{base.name}.trajectory.jsonl'),
-        base.with_name(f'{base.name}.trajectory-path.json'),
+        path.with_name(f'{session_id}.trajectory.jsonl'),
+        path.with_name(f'{session_id}.trajectory-path.json'),
+        *sorted(path.parent.glob(f'{session_id}.checkpoint.*.jsonl')),
     ]
 
 
