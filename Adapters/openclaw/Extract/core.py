@@ -61,12 +61,12 @@ def _read_known_sessions(path: str) -> list[tuple[str, str]]:
 def _find_session_file_for_uuid(sessions_path: str, session_id: str) -> str | None:
     if not os.path.isdir(sessions_path):
         return None
-    plain = os.path.join(sessions_path, f'{session_id}.jsonl')
-    if os.path.exists(plain):
-        return plain
     reset_files = sorted([f for f in os.listdir(sessions_path) if f.startswith(session_id) and '.reset.' in f], reverse=True)
     if reset_files:
         return os.path.join(sessions_path, reset_files[0])
+    plain = os.path.join(sessions_path, f'{session_id}.jsonl')
+    if os.path.exists(plain):
+        return plain
     return None
 
 
