@@ -1,3 +1,5 @@
+[English](C4_adapter-hermes_en.md) | 中文
+
 # Hermes Adapter
 
 本文档说明 `Adapters/hermes/` 的当前能力边界。Hermes adapter 是 experimental adapter，不是默认 production harness。

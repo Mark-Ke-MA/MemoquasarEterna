@@ -1,3 +1,5 @@
+[English](A2_overall-config-reference_en.md) | 中文
+
 # OverallConfig.json 字段说明
 
 本文档是 `OverallConfig.json` 的字段参考，不是安装教程。首次安装请先看 `docs/A1_installation-guide.md`。

@@ -1,3 +1,5 @@
+[English](B2_layer2-restore-guide_en.md) | 中文
+
 # Layer2 Restore 指引
 
 本文档说明如何使用 Layer2 的 restore 入口，从 `archive_dir` 中恢复指定日期或周的记忆文件。

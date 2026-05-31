@@ -1,3 +1,5 @@
+[English](README_en.md) | 中文
+
 # MemoquasarEterna
 
 **MemoquasarEterna**（记忆的存续）是一套面向多 agent 场景的本地记忆系统。

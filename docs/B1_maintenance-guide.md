@@ -1,3 +1,5 @@
+[English](B1_maintenance-guide_en.md) | 中文
+
 # 日常维护指引
 
 本文档说明 MemoquasarEterna 的日常维护入口、常见问题与最常见恢复动作。

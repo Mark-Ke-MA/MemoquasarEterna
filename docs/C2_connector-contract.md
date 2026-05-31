@@ -1,3 +1,5 @@
+[English](C2_connector-contract_en.md) | 中文
+
 # Connector Contract
 
 本文档定义 `Core/` 与 `Adapters/` 之间的固定能力边界。具体 adapter 实现见 `docs/C3_adapter-openclaw.md`、`docs/C4_adapter-hermes.md`。

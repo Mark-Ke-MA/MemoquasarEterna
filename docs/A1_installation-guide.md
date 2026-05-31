@@ -1,3 +1,5 @@
+[English](A1_installation-guide_en.md) | 中文
+
 # 安装指南
 本文档只说明 MemoquasarEterna 的安装主流程。`OverallConfig.json` 全字段说明见：`docs/A2_overall-config-reference.md`
 

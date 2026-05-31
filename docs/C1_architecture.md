@@ -1,3 +1,5 @@
+[English](C1_architecture_en.md) | 中文
+
 # Architecture
 
 本文档说明 MemoquasarEterna 的整体结构、memory schema、layer 协作方式，以及 adapter / connector 在其中的位置。实现细节见各 Layer README、`docs/C2_connector-contract.md`、`docs/C3_adapter-openclaw.md`、`docs/C4_adapter-hermes.md`。

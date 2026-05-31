@@ -1,3 +1,5 @@
+[English](C3_adapter-openclaw_en.md) | 中文
+
 # Adapter: OpenClaw
 
 本文档说明 `Adapters/openclaw/` 的职责、能力域和当前成熟度。connector 固定接口见 `docs/C2_connector-contract.md`。
