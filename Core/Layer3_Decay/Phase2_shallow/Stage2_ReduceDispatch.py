@@ -134,10 +134,49 @@ def _is_emotional_peaks(value: Any) -> bool:
     return True
 
 
+def _coerce_name_detail_items_to_strings(value: Any) -> tuple[Any, bool]:
+    if not isinstance(value, list):
+        return value, False
+
+    out: list[str] = []
+    changed = False
+    for item in value:
+        if isinstance(item, str):
+            text = item.strip()
+        elif isinstance(item, dict) and set(item.keys()) == {'name', 'detail'}:
+            name = str(item.get('name', '') or '').strip()
+            detail = str(item.get('detail', '') or '').strip()
+            if name and detail:
+                text = f'{name}：{detail}'
+            else:
+                text = name or detail
+            changed = True
+        else:
+            return value, False
+        if text:
+            out.append(text)
+
+    return out, changed
+
+
+def _normalize_reduce_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], bool]:
+    normalized = dict(payload)
+    changed = False
+    for key in ('decisions', 'todos'):
+        value, field_changed = _coerce_name_detail_items_to_strings(normalized.get(key))
+        if field_changed:
+            normalized[key] = value
+            changed = True
+    return normalized, changed
+
+
 def _parse_and_validate_reduce_output(path: str | Path) -> tuple[bool, dict[str, Any] | None]:
     ok, payload, _repaired = load_json_with_repair(path)
     if not ok or not isinstance(payload, dict):
         return False, None
+    payload, normalized = _normalize_reduce_payload(payload)
+    if normalized:
+        write_json_atomic(path, payload)
     if set(payload.keys()) != set(EXPECTED_REDUCE_KEYS):
         return False, payload
     if not isinstance(payload.get('week'), str):
