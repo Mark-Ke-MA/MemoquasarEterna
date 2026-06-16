@@ -120,8 +120,6 @@ def _is_emotional_peaks(value: Any) -> bool:
     for item in value:
         if not isinstance(item, dict):
             return False
-        if set(item.keys()) != {'date', 'emotion', 'intensity', 'context'}:
-            return False
         if not isinstance(item.get('date'), str):
             return False
         if not isinstance(item.get('emotion'), str):
@@ -134,6 +132,37 @@ def _is_emotional_peaks(value: Any) -> bool:
     return True
 
 
+def _normalize_emotional_peaks(value: Any) -> tuple[Any, bool]:
+    if not isinstance(value, list):
+        return value, False
+
+    out: list[dict[str, Any]] = []
+    changed = False
+    for item in value:
+        if not isinstance(item, dict):
+            return value, False
+        required = {
+            'date': item.get('date'),
+            'emotion': item.get('emotion'),
+            'intensity': item.get('intensity'),
+            'context': item.get('context'),
+        }
+        if not isinstance(required['date'], str):
+            return value, False
+        if not isinstance(required['emotion'], str):
+            return value, False
+        if not isinstance(required['context'], str):
+            return value, False
+        intensity = required['intensity']
+        if not isinstance(intensity, int) or isinstance(intensity, bool):
+            return value, False
+        if set(item.keys()) != {'date', 'emotion', 'intensity', 'context'}:
+            changed = True
+        out.append(required)
+
+    return out, changed
+
+
 def _coerce_name_detail_items_to_strings(value: Any) -> tuple[Any, bool]:
     if not isinstance(value, list):
         return value, False
@@ -143,13 +172,10 @@ def _coerce_name_detail_items_to_strings(value: Any) -> tuple[Any, bool]:
     for item in value:
         if isinstance(item, str):
             text = item.strip()
-        elif isinstance(item, dict) and set(item.keys()) == {'name', 'detail'}:
-            name = str(item.get('name', '') or '').strip()
-            detail = str(item.get('detail', '') or '').strip()
-            if name and detail:
-                text = f'{name}：{detail}'
-            else:
-                text = name or detail
+        elif isinstance(item, dict):
+            text = _stringify_drifted_string_list_item(item)
+            if text is None:
+                return value, False
             changed = True
         else:
             return value, False
@@ -157,6 +183,35 @@ def _coerce_name_detail_items_to_strings(value: Any) -> tuple[Any, bool]:
             out.append(text)
 
     return out, changed
+
+
+def _stringify_drifted_string_list_item(item: dict[str, Any]) -> str | None:
+    keys = set(item.keys())
+    if keys == {'name', 'detail'}:
+        name = str(item.get('name', '') or '').strip()
+        detail = str(item.get('detail', '') or '').strip()
+        if name and detail:
+            return f'{name}：{detail}'
+        return name or detail or None
+    if keys == {'item', 'context'}:
+        item_text = str(item.get('item', '') or '').strip()
+        context = str(item.get('context', '') or '').strip()
+        if item_text and context:
+            return f'{item_text}（{context}）'
+        return item_text or context or None
+    if keys == {'item', 'background', 'result'}:
+        item_text = str(item.get('item', '') or '').strip()
+        background = str(item.get('background', '') or '').strip()
+        result = str(item.get('result', '') or '').strip()
+        parts = []
+        if item_text:
+            parts.append(item_text)
+        if background:
+            parts.append(f'背景：{background}')
+        if result:
+            parts.append(f'结果：{result}')
+        return '；'.join(parts) or None
+    return None
 
 
 def _normalize_reduce_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], bool]:
@@ -167,6 +222,10 @@ def _normalize_reduce_payload(payload: dict[str, Any]) -> tuple[dict[str, Any], 
         if field_changed:
             normalized[key] = value
             changed = True
+    value, field_changed = _normalize_emotional_peaks(normalized.get('emotional_peaks'))
+    if field_changed:
+        normalized['emotional_peaks'] = value
+        changed = True
     return normalized, changed
 
 
@@ -377,6 +436,7 @@ def build_stage2_reduce_prompt(job: Stage2ReduceJob, *, worker_reduce_view: list
    - `todos`: list[str]， 合并去重。≤15项；每项≤120字；包含足够上下文（关于什么、触发原因）；重复待办需合并；剔除本周已完成事项
    - `key_items`: list[{{type, desc}}]，合并去重。type限定: milestone/bug_fix/config_change/decision/incident/question。≤20项；desc≤150字，完整描述事件背景、过程和影响；重复事件需合并
    - `emotional_peaks`: list[{{date, emotion, intensity, context}}]，合并去重。date 格式为 YYYY-MM-DD；intensity 为 1-5 的整数；≤15项；context≤120字
+10. JSON结果字段及其内部格式必须严格遵守第9条的字段名、类型和结构描述。
 """
 
 
